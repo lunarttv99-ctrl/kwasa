@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#6b4423" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Wiejskie życie" />
+  <meta name="description" content="Wiejskie życie – gra mobilna o prowadzeniu gospodarstwa: uprawy, zwierzęta, kuchnia i zamówienia od sąsiadów." />
+  <title>Wiejskie życie</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hud">
+      <button class="hud-pill hud-level" id="levelBtn" type="button" aria-label="Poziom i doświadczenie">
+        <span class="lvl-star">⭐<b id="level">1</b></span>
+        <span class="xp-bar"><span id="xpFill"></span></span>
+      </button>
+      <div class="hud-pill hud-coins" aria-label="Monety"><span>🪙</span><b id="coins">0</b></div>
+      <div class="hud-pill hud-day">
+        <span id="weatherIcon" class="weather-icon">☀️</span>
+        <span class="day-text"><b id="dayNum">Dzień 1</b><small id="clock">06:00</small></span>
+      </div>
+      <button class="hud-btn" id="menuBtn" type="button" aria-label="Ustawienia">⚙️</button>
+    </header>
+
+    <main class="views">
+      <section class="view view-farm active" id="view-farm">
+        <div class="sky" id="sky">
+          <span class="sun" id="sun">☀️</span>
+          <span class="cloud c1">☁️</span>
+          <span class="cloud c2">☁️</span>
+          <div class="hills"></div>
+          <div class="horizon">
+            <span>🌲</span><span class="big">🏡</span><span>🌳</span><span>🌲</span><span class="big">🛖</span><span>🌳</span><span class="mill">🌾</span>
+          </div>
+        </div>
+        <div class="field-wrap" id="fieldWrap">
+          <div class="field" id="field" aria-label="Pole uprawne"></div>
+        </div>
+        <div class="night-shade" id="nightShade"></div>
+        <div class="rain" id="rain"></div>
+        <div class="farm-bottom">
+          <p class="hint" id="hint"></p>
+          <div class="seedbar" id="seedbar" role="listbox" aria-label="Nasiona"></div>
+        </div>
+      </section>
+
+      <section class="view paper" id="view-animals">
+        <div class="view-head">
+          <h2>🐔 Zagroda</h2>
+          <div class="head-actions">
+            <button class="btn small" id="feedAllBtn" type="button">Nakarm</button>
+            <button class="btn small gold" id="collectAllBtn" type="button">Zbierz</button>
+          </div>
+        </div>
+        <div id="animals"></div>
+      </section>
+
+      <section class="view paper" id="view-kitchen">
+        <div class="view-head"><h2>🍳 Wiejska kuchnia</h2></div>
+        <div id="kitchen"></div>
+      </section>
+
+      <section class="view paper" id="view-orders">
+        <div class="view-head">
+          <h2>📋 Zamówienia</h2>
+          <p class="sub">Sąsiedzi płacą więcej niż targ. Spełniaj ich prośby!</p>
+        </div>
+        <div id="orders"></div>
+      </section>
+
+      <section class="view paper" id="view-barn">
+        <div class="view-head">
+          <h2>🏚️ Stodoła</h2>
+          <span class="sub" id="barnValue"></span>
+        </div>
+        <div id="barn"></div>
+      </section>
+    </main>
+
+    <nav class="tabs" id="tabs">
+      <button class="active" data-tab="farm" type="button"><span>🌱</span>Pole</button>
+      <button data-tab="animals" type="button"><span>🐔</span>Zagroda<i class="badge" id="badge-animals"></i></button>
+      <button data-tab="kitchen" type="button"><span>🍳</span>Kuchnia<i class="badge" id="badge-kitchen"></i></button>
+      <button data-tab="orders" type="button"><span>📋</span>Zamówienia<i class="badge" id="badge-orders"></i></button>
+      <button data-tab="barn" type="button"><span>🏚️</span>Stodoła</button>
+    </nav>
+  </div>
+
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
