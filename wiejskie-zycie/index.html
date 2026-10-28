@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Wiejskie życie" />
-  <meta name="description" content="Wiejskie życie – gra mobilna o prowadzeniu gospodarstwa: uprawy, zwierzęta, kuchnia i zamówienia od sąsiadów." />
+  <meta name="description" content="Wiejskie życie – gra mobilna o prowadzeniu gospodarstwa w 3D: uprawy, zwierzęta, pory roku, pomocnicy, odbudowa wsi, wędkowanie i wydarzenia." />
   <title>Wiejskie życie</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
@@ -23,7 +23,10 @@
         <span class="lvl-star">⭐<b id="level">1</b></span>
         <span class="xp-bar"><span id="xpFill"></span></span>
       </button>
-      <div class="hud-pill hud-coins" aria-label="Monety"><span>🪙</span><b id="coins">0</b></div>
+      <div class="hud-pill hud-coins" aria-label="Monety i złote kłosy">
+        <span class="money"><span>🪙</span><b id="coins">0</b></span>
+        <small class="goldline">🌟 <b id="gold">0</b></small>
+      </div>
       <div class="hud-pill hud-day">
         <span id="weatherIcon" class="weather-icon">☀️</span>
         <span class="day-text"><b id="dayNum">Dzień 1</b><small id="clock">06:00</small></span>
@@ -35,8 +38,16 @@
       <section class="view view-farm active" id="view-farm">
         <div class="scene" id="scene">
           <canvas id="scene3d" aria-label="Gospodarstwo w 3D"></canvas>
-          <button class="scene-btn" id="rotateBtn" type="button" aria-label="Obróć kamerę">⟳</button>
-          <button class="event-pill hidden" id="eventPill" type="button">🎃 Halloween · <b id="eventPillPts">0</b> 👻</button>
+          <div class="scene-tools">
+            <button class="scene-btn" id="rotateBtn" type="button" aria-label="Obróć kamerę">⟳</button>
+            <button class="scene-btn" id="fishBtn" type="button" aria-label="Łów ryby">🎣</button>
+            <button class="scene-btn" id="packBtn" type="button" aria-label="Plecak">🎒<i class="badge" id="packCount"></i></button>
+            <span class="coffee hidden" id="coffeeBadge" title="Kawa dla pomocników">☕</span>
+          </div>
+          <div class="scene-left">
+            <button class="event-pill hidden" id="eventPill" type="button">🎃 Halloween · <b id="eventPillPts">0</b> 👻</button>
+          </div>
+          <button class="quest-card hidden" id="questCard" type="button"></button>
         </div>
         <div class="sky" id="sky">
           <span class="sun" id="sun">☀️</span>
@@ -82,6 +93,26 @@
         <div id="orders"></div>
       </section>
 
+      <section class="view paper" id="view-more">
+        <div id="more"></div>
+      </section>
+
+      <section class="view paper" id="view-workshop">
+        <div id="workshop"></div>
+      </section>
+
+      <section class="view paper" id="view-village">
+        <div id="village"></div>
+      </section>
+
+      <section class="view paper" id="view-merchant">
+        <div id="merchant"></div>
+      </section>
+
+      <section class="view paper" id="view-trophies">
+        <div id="trophies"></div>
+      </section>
+
       <section class="view paper spooky-paper" id="view-event">
         <div id="event"></div>
       </section>
@@ -101,7 +132,7 @@
       <button data-tab="kitchen" type="button"><span>🍳</span>Kuchnia<i class="badge" id="badge-kitchen"></i></button>
       <button data-tab="orders" type="button"><span>📋</span>Zamówienia<i class="badge" id="badge-orders"></i></button>
       <button data-tab="barn" type="button"><span>🏚️</span>Stodoła</button>
-      <button class="hidden" id="eventTab" data-tab="event" type="button"><span>🎃</span>Halloween<i class="badge" id="badge-event"></i></button>
+      <button data-tab="more" type="button"><span>☰</span>Więcej<i class="badge" id="badge-more"></i></button>
     </nav>
   </div>
 

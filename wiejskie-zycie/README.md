@@ -2,6 +2,20 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## Nowości w wersji 3 — „Wielka aktualizacja”
+
+- **🔨 Warsztat:** 10 ulepszeń kupowanych poziomami (konewka podlewająca 5 lub 9 grządek i zraszacze, kompostownik, kosa, stragan, rozbudowa zagród, piec, wędka, wóz, szklarnia, pies Burek).
+- **👥 Pomocnicy:** Parobek Józek zbiera i sieje, Gospodyni Basia karmi zwierzęta, Kucharz Mietek gotuje. Pracują także po zamknięciu gry i chodzą po scenie 3D.
+- **🏘️ Odbudowa wsi:** 6 budynków (studnia, młyn wodny, świetlica, most, kapliczka, remiza OSP) budowanych z materiałów. Każdy daje stały bonus i pojawia się w 3D.
+- **🌲 Wyprawy do lasu** po drewno 🪵, kamień 🪨, gwoździe 🔩 i grzyby. Materiały dają też karczowanie i zamówienia.
+- **🍂 Pory roku** co 4 dni: ulubione pory upraw (+30%), wolniejsza zima, śnieg, jesienne i zimowe kolory drzew. Nowe uprawy: kapusta i ogórki.
+- **🎣 Łowienie ryb** w stawie (minigra z zacięciem), **🐦 wrony** do przeganiania i **✨ złote plony**.
+- **🌟 Złote kłosy:** druga waluta za zadania, osiągnięcia, złote plony i budowy. Przyspiesza potrawy i wyprawy.
+- **📜 Kronika wsi:** 25 fabularnych zadań oraz **🏅 15 osiągnięć × 3 medale**.
+- **🧳 Wędrowny kupiec** z codzienną ofertą, **🎒 wzmacniacze** (nawóz turbo, deszczownica, przysmak, kawa, złote nasiono) i **🔥 okazje dnia** w Stodole.
+- Nowe przepisy: pierogi ruskie, bigos z grzybami, mizeria, ryba z ziemniakami.
+- Nazwa gospodarstwa, muzyka w tle, kopia zapasowa (kod do przeniesienia gry na inny telefon).
+
 ## Nowości w wersji 2
 
 - **Grafika 3D** – pole, uprawy, płot, stodoła, dom, wiatrak i zwierzęta jako trójwymiarowa scena (Three.js) z cieniami, cyklem dnia i nocy, deszczem i przesuwającymi się cieniami chmur. Przycisk ⟳ obraca kamerę. Na słabszych telefonach można przełączyć grafikę na klasyczną 2D (⚙️ → Grafika).
@@ -35,6 +49,8 @@ To zwykłe pliki statyczne – nie trzeba niczego budować.
 - `index.html` – układ ekranu,
 - `styles.css` – wygląd,
 - `game.js` – logika gry i zapis (localStorage, klucz `wiejskie_zycie_save_v1`),
+- `data.js` – definicje treści: uprawy, przepisy, ulepszenia, zadania, osiągnięcia,
+- `music.js` – generowana muzyka w tle,
 - `farm3d.js` – scena 3D gospodarstwa,
 - `vendor/three.module.min.js` – biblioteka Three.js r169 (licencja MIT, `vendor/three-LICENSE.txt`),
 - `fonts/` – czcionka Fredoka (licencja SIL Open Font License),
