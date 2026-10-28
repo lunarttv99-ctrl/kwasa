@@ -3,7 +3,7 @@ import { createMusic } from './music.js';
 import {
   ITEMS, CROPS, ANIMALS, RECIPES, HALLOWEEN, UPGRADES, HELPERS, PROJECTS, TRIPS, FISH_TABLE, BOOSTERS,
   MERCHANT_POOL, QUESTS, ACHIEVEMENTS, ACHIEVEMENT_REWARDS, NPCS, REQUESTS, TIPS, HALLOWEEN_TIPS,
-  DAILY_REWARDS, DECO, DECO_LOOT, SEASONS, SEASON_DAYS
+  DAILY_REWARDS, DECO, DECO_LOOT, SEASONS, SEASON_DAYS, TREES, HEATER, PROCESSORS
 } from './data.js';
 
 const SAVE_KEY = 'wiejskie_zycie_save_v1';
@@ -184,6 +184,13 @@ function migrate(data) {
   data.music = data.music !== false;
   data.crowTimer = data.crowTimer || 45000;
   data.seasonSeen = data.seasonSeen ?? Math.floor((data.day - 1) / SEASON_DAYS) % 4;
+  data.processors = data.processors || {};
+  data.heatFuel = data.heatFuel || 0;
+  if ((data.dataV || 3) < 4) {
+    // v4 dodała 5 zadań przed ostatnim zadaniem kroniki
+    if (data.quest.idx >= 24) data.quest.idx += 5;
+    data.dataV = 4;
+  }
   data.tiles.forEach(t => {
     if (t.s === 'crop' && !t.T) t.T = CROPS[t.crop].time * 1000;
   });
@@ -454,6 +461,9 @@ function unlocksAt(level) {
   Object.values(HELPERS).forEach(h => { if (h.level === level) list.push(`${h.icon} Pomocnik: ${h.name}`); });
   Object.values(PROJECTS).forEach(p => { if (p.level === level) list.push(`${p.icon} Projekt wsi: ${p.name}`); });
   Object.values(TRIPS).forEach(t => { if (t.level === level) list.push(`${t.icon} Las: ${t.name}`); });
+  Object.values(TREES).forEach(t => { if (t.level === level) list.push(`${t.icon} Sad: ${t.name}`); });
+  Object.values(PROCESSORS).forEach(pr => { if (pr.level === level) list.push(`${pr.icon} Przetwórnia: ${pr.name}`); });
+  if (level === HEATER.level) list.push('🔥 Grzejniki ogrodowe na zimę');
   return list;
 }
 
@@ -484,15 +494,104 @@ function seasonIndex() {
   return Math.floor((state.day - 1) / SEASON_DAYS) % 4;
 }
 
-function seasonMult(cropId) {
+function isWinter() {
+  return seasonIndex() === 3;
+}
+
+function seasonMult(cropId, heated = false) {
   const s = seasonIndex();
-  if (CROPS[cropId].seasons.includes(s)) return 1.3;
+  const fav = CROPS[cropId].seasons.includes(s);
+  if (s === 3 && heated) return fav ? 1.4 : 1.1;
+  if (fav) return 1.3;
   if (s === 3) return upg('greenhouse') ? 1 : 0.6;
   return 1;
 }
 
-function growthMult(t) {
-  return (t.w ? 1 : DRY_SPEED) * (hasDecor('lanterns') && isNight() ? 1.25 : 1) * (1 + 0.08 * upg('compost')) * seasonMult(t.crop);
+function growthMult(t, heated = false) {
+  return (t.w ? 1 : DRY_SPEED) * (hasDecor('lanterns') && isNight() ? 1.25 : 1) * (1 + 0.08 * upg('compost')) * seasonMult(t.crop, heated);
+}
+
+function treeMult(heated = false) {
+  const s = seasonIndex();
+  const season = s === 3 ? (heated ? 0.8 : 0) : s === 0 ? 1.25 : 1;
+  return season * (1 + 0.08 * upg('compost'));
+}
+
+/* ---------- Heaters & frost ---------- */
+
+let heatedTiles = new Set();
+
+function heatersWarm() {
+  return isWinter() && !state.heatCold;
+}
+
+function computeHeated() {
+  heatedTiles = new Set();
+  if (!heatersWarm()) return;
+  const radius = upg('heaters') >= 1 ? 2 : 1;
+  state.tiles.forEach((t, i) => {
+    if (t.s !== 'heater') return;
+    const r = Math.floor(i / COLS);
+    const c = i % COLS;
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        const rr = r + dr;
+        const cc = c + dc;
+        if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) heatedTiles.add(rr * COLS + cc);
+      }
+    }
+  });
+}
+
+function burnFuel(dt) {
+  const heaters = state.tiles.filter(t => t.s === 'heater').length;
+  if (!heaters || !isWinter()) return;
+  const per = HEATER.burn * 1000;
+  state.heatFuel += dt * heaters * (upg('heaters') >= 2 ? 0.5 : 1);
+  if (state.heatCold && inv('wood') > 0) state.heatCold = false;
+  while (state.heatFuel >= per) {
+    if (inv('wood') > 0) {
+      addItem('wood', -1);
+      state.heatFuel -= per;
+    } else {
+      if (!state.heatCold) toast('🔥 Grzejniki wygasły — skończyło się drewno 🪵!');
+      state.heatCold = true;
+      state.heatFuel = per;
+      break;
+    }
+  }
+}
+
+function frostTonight() {
+  return !!(state.frost && state.frost.day === state.day && !state.frost.hit);
+}
+
+function frostTick() {
+  if (!frostTonight() || hourOfDay() < 22) return;
+  state.frost.hit = true;
+  let damaged = 0;
+  let saved = 0;
+  const fleece = state.fleece;
+  state.tiles.forEach((t, i) => {
+    if (t.s !== 'crop' || cropReady(t) || t.crop === 'cabbage') return;
+    if (fleece || heatedTiles.has(i)) {
+      saved++;
+      return;
+    }
+    t.p = Math.max(0, t.p - cropTotal(t) * 0.3);
+    t.frozen = true;
+    damaged++;
+  });
+  state.fleece = false;
+  bump('frostSaved', saved);
+  sfx(damaged ? 'error' : 'golden');
+  showModal({
+    hero: '🥶',
+    title: 'Przymrozek!',
+    body: `<p>${damaged ? `Mróz ściął <b>${damaged}</b> ${damaged === 1 ? 'roślinę' : 'roślin'} — straciły 30% wzrostu.` : 'Żadna roślina nie zmarzła!'}</p>${saved ? `<p>${fleece ? '🧣 Agrowłóknina' : '🔥 Grzejniki'} uratowały: <b>${saved}</b>.</p>` : ''}<p class="meta">Kapusta lubi mróz i nic jej nie grozi.</p>`,
+    buttons: [{ label: damaged ? 'Następnym razem się przygotuję' : 'Brawo!', cls: 'gold' }]
+  });
+  save();
 }
 
 function doubleChance() {
@@ -611,6 +710,8 @@ function tileAction(i) {
     case 'grass': return 'plow';
     case 'soil': return t.weed ? 'weed' : 'plant';
     case 'crop': return cropReady(t) ? 'harvest' : t.w ? 'info' : 'water';
+    case 'tree': return treeReady(t) ? 'fruit' : 'treeinfo';
+    case 'heater': return 'heaterinfo';
     default: return null;
   }
 }
@@ -690,6 +791,8 @@ function doAction(i, action) {
       sfx('plow');
       break;
     case 'plant': {
+      if (TREES[state.seed]) return plantTree(i);
+      if (state.seed === 'heater') return placeHeater(i);
       const crop = cropInfo(state.seed);
       if (state.level < crop.level) {
         toast(`Te nasiona odblokujesz na poziomie ${crop.level}.`);
@@ -726,6 +829,11 @@ function doAction(i, action) {
       sfx('harvest');
       buzz();
       break;
+    case 'fruit':
+      harvestTree(i);
+      sfx('harvest');
+      buzz();
+      break;
     case 'weed':
       t.weed = false;
       addCoins(2);
@@ -744,8 +852,136 @@ function doAction(i, action) {
 
 function showCropInfo(i) {
   const t = state.tiles[i];
-  const left = (cropTotal(t) - t.p) / 1000 / growthMult(t);
+  const left = (cropTotal(t) - t.p) / 1000 / growthMult(t, heatedTiles.has(i));
   toast(`${t.g ? '✨ Złota ' : ''}${itemLabel(t.crop)} — gotowe za ok. ${fmtTime(left)}`);
+}
+
+/* ---------- Orchard & heaters on the field ---------- */
+
+function treeReady(t) {
+  return t.s === 'tree' && t.p >= t.T;
+}
+
+function seedCost(id) {
+  if (TREES[id]) return TREES[id].cost.coins || 0;
+  if (id === 'heater') return HEATER.cost.coins;
+  return cropInfo(id).cost;
+}
+
+function plantTree(i) {
+  const id = state.seed;
+  const tr = TREES[id];
+  if (state.level < tr.level) {
+    toast(`${tr.name} — odblokujesz na poziomie ${tr.level}.`);
+    return false;
+  }
+  if (!canAfford(tr.cost)) {
+    sfx('error');
+    toast(`Sadzonka kosztuje ${rewardText(tr.cost)}.`);
+    return false;
+  }
+  pay(tr.cost);
+  state.tiles[i] = { s: 'tree', tree: id, p: 0, T: tr.grow * 1000 };
+  bump('trees');
+  floatAtTile(i, `🌳 ${tr.name}!`, '', 10);
+  sfx('plant');
+  return true;
+}
+
+function placeHeater(i) {
+  if (state.level < HEATER.level) {
+    toast(`Grzejniki odblokujesz na poziomie ${HEATER.level}.`);
+    return false;
+  }
+  if (!canAfford(HEATER.cost)) {
+    sfx('error');
+    toast(`Grzejnik kosztuje ${rewardText(HEATER.cost)}.`);
+    return false;
+  }
+  pay(HEATER.cost);
+  state.tiles[i] = { s: 'heater' };
+  bump('heaters');
+  computeHeated();
+  sfx('build');
+  toast(isWinter() ? '🔥 Grzejnik grzeje sąsiednie grządki (pali drewno 🪵).' : '🔥 Grzejnik zacznie grzać zimą — pali drewno 🪵.');
+  return true;
+}
+
+function harvestTree(i, quiet = false) {
+  const t = state.tiles[i];
+  const tr = TREES[t.tree];
+  const bees = state.animals.filter(a => a.type === 'bee').length >= 2;
+  const lucky = Math.random() < doubleChance();
+  const n = (tr.yield + (bees ? 1 : 0)) * (lucky ? 2 : 1);
+  addItem(t.tree, n);
+  bump('fruit', n);
+  bump('harvested', n);
+  const xp = addXp(tr.xp);
+  t.p = 0;
+  t.T = tr.regrow * 1000;
+  t.fruited = true;
+  if (!quiet) {
+    floatAtTile(i, `+${n} ${tr.icon}${bees ? ' 🐝' : ''}${lucky ? ' ✨' : ''}`, '', 8);
+    floatAtTile(i, `+${xp} ⭐`, 'xp', -12);
+  }
+  return t.tree;
+}
+
+function showTreeInfo(i) {
+  const t = state.tiles[i];
+  const tr = TREES[t.tree];
+  const heated = heatedTiles.has(i);
+  const mult = treeMult(heated);
+  const status = mult === 0
+    ? '❄️ Zimą drzewo śpi. Postaw obok grzejnik, a będzie owocować także zimą.'
+    : `Owoce za ok. <b>${fmtTime((t.T - t.p) / 1000 / mult)}</b>${seasonIndex() === 0 ? ' (wiosną kwitnie i rośnie szybciej 🌸)' : ''}.`;
+  showModal({
+    hero: tr.icon,
+    title: tr.name,
+    body: `<p>${status}</p><p class="meta">Każdy zbiór: ${tr.icon} ×${tr.yield}${state.animals.filter(a => a.type === 'bee').length >= 2 ? ' +1 dzięki pszczołom 🐝' : ' (2 ule dają +1 owoc)'}.</p>`,
+    buttons: [
+      { label: 'OK', cls: 'gold' },
+      {
+        label: '🪓 Wytnij drzewo (+3 🪵)',
+        cls: 'ghost',
+        onClick: () => {
+          state.tiles[i] = { s: 'soil' };
+          addItem('wood', 3);
+          sfx('plow');
+          save();
+          renderAll();
+        }
+      }
+    ]
+  });
+}
+
+function showHeaterInfo(i) {
+  const warm = heatersWarm();
+  const radius = upg('heaters') >= 1 ? '5×5' : '3×3';
+  const burn = HEATER.burn * (upg('heaters') >= 2 ? 2 : 1);
+  const status = !isWinter()
+    ? 'Teraz odpoczywa — rozpali się sam, gdy przyjdzie zima.'
+    : warm ? '🔥 Grzeje! Rośliny dookoła rosną zimą normalnie i nie boją się przymrozków.' : '🥶 Wygasł — brakuje drewna 🪵. Zdobądź je w lesie lub u kupca.';
+  showModal({
+    hero: warm ? '🔥' : '🧱',
+    title: HEATER.name,
+    body: `<p>${status}</p><p class="meta">Zasięg ${radius} · spala 1 🪵 co ${fmtTime(burn)} · masz ${inv('wood')} 🪵</p>`,
+    buttons: [
+      { label: 'OK', cls: 'gold' },
+      {
+        label: 'Rozbierz (+4 🪨)',
+        cls: 'ghost',
+        onClick: () => {
+          state.tiles[i] = { s: 'soil' };
+          addItem('stone', 4);
+          computeHeated();
+          save();
+          renderAll();
+        }
+      }
+    ]
+  });
 }
 
 /* ---------- Crows ---------- */
@@ -1026,6 +1262,9 @@ function canProduce(id) {
   if (r) return state.level >= r.level && Object.keys(r.input).every(canProduce);
   const er = HALLOWEEN.recipes[id];
   if (er) return halloweenActive() && Object.keys(er.input).every(canProduce);
+  if (TREES[id]) return state.tiles.some(t => t.s === 'tree' && t.tree === id);
+  const proc = Object.entries(PROCESSORS).find(([, pr]) => pr.recipes[id]);
+  if (proc) return !!state.processors[proc[0]] && Object.keys(proc[1].recipes[id].input).every(canProduce);
   return false;
 }
 
@@ -1147,6 +1386,89 @@ function sellItem(id, n, el) {
   save();
 }
 
+/* ---------- Processing plant ---------- */
+
+function procSpeed() {
+  return projectDone('mill') ? 1.25 : 1;
+}
+
+function procTime(pid, rid) {
+  return (PROCESSORS[pid].recipes[rid].time * 1000) / procSpeed();
+}
+
+function buildProcessor(pid) {
+  const pr = PROCESSORS[pid];
+  if (state.processors[pid] || state.level < pr.level) return;
+  if (!canAfford(pr.cost)) {
+    sfx('error');
+    toast('Brakuje materiałów lub monet. Zajrzyj do lasu i do kupca!');
+    return;
+  }
+  pay(pr.cost);
+  state.processors[pid] = { slots: Array(pr.slots).fill(null) };
+  bump('upgrades');
+  sfx('build');
+  buzz(20);
+  showModal({
+    hero: pr.icon,
+    title: `${pr.name} gotowa!`,
+    body: `<p>${pr.text}</p>`,
+    buttons: [{ label: 'Do pracy!', cls: 'gold' }]
+  });
+  save();
+}
+
+function startProcess(pid, rid) {
+  const proc = state.processors[pid];
+  const r = PROCESSORS[pid].recipes[rid];
+  if (!proc) return;
+  const k = proc.slots.findIndex(sl => sl === null);
+  if (k < 0) {
+    toast('Wszystkie stanowiska są zajęte.');
+    return;
+  }
+  if (!hasItems(r.input)) {
+    sfx('error');
+    toast('Brakuje surowców.');
+    return;
+  }
+  takeItems(r.input);
+  proc.slots[k] = { r: rid, p: 0 };
+  sfx('plant');
+  save();
+}
+
+function collectProcess(pid, k) {
+  const slot = state.processors[pid].slots[k];
+  const r = PROCESSORS[pid].recipes[slot.r];
+  if (r.booster) state.boosters[r.booster] = (state.boosters[r.booster] || 0) + r.out;
+  else addItem(slot.r, r.out);
+  bump('processed', r.out);
+  bump(`p_${slot.r}`, r.out);
+  state.processors[pid].slots[k] = null;
+  return { id: slot.r, out: r.out, xp: addXp(r.xp), icon: r.booster ? BOOSTERS[r.booster].icon : ITEMS[slot.r].icon };
+}
+
+function tapProcess(pid, k, el) {
+  const slot = state.processors[pid] && state.processors[pid].slots[k];
+  if (!slot) return;
+  const total = procTime(pid, slot.r);
+  if (slot.p >= total) {
+    const res = collectProcess(pid, k);
+    floatAt(el, `+${res.out} ${res.icon}`, '', 8);
+    floatAt(el, `+${res.xp} ⭐`, 'xp', -12);
+    sfx('harvest');
+    save();
+  } else {
+    const r = PROCESSORS[pid].recipes[slot.r];
+    offerSpeedUp(r.booster ? BOOSTERS[r.booster].name : itemLabel(slot.r), total - slot.p, () => { slot.p = total; });
+  }
+}
+
+function readyProcessSlots() {
+  return Object.entries(state.processors).reduce((n, [pid, pr]) => n + pr.slots.filter(sl => sl && sl.p >= procTime(pid, sl.r)).length, 0);
+}
+
 /* ---------- Workshop: upgrades & helpers ---------- */
 
 function buyUpgrade(id) {
@@ -1220,6 +1542,13 @@ function runHelpers(dt, quiet) {
 }
 
 function jozekWork(lvl, quiet) {
+  const ti = state.tiles.findIndex(treeReady);
+  if (ti >= 0) {
+    const fruit = harvestTree(ti, true);
+    helperTarget = ti;
+    if (!quiet) floatAtTile(ti, `👨‍🌾 +${ITEMS[fruit].icon}`);
+    return 1;
+  }
   const i = state.tiles.findIndex(cropReady);
   if (lvl >= 3) {
     const dry = state.tiles.find(t => t.s === 'crop' && !t.w && !cropReady(t));
@@ -1245,6 +1574,17 @@ function basiaWork() {
 }
 
 function mietekWork() {
+  for (const [pid, pr] of Object.entries(state.processors)) {
+    const k = pr.slots.findIndex(sl => sl && sl.p >= procTime(pid, sl.r));
+    if (k < 0) continue;
+    const { id } = collectProcess(pid, k);
+    const r = PROCESSORS[pid].recipes[id];
+    if (hasItems(r.input)) {
+      takeItems(r.input);
+      pr.slots[k] = { r: id, p: 0 };
+    }
+    return 1;
+  }
   const idx = state.kitchen.findIndex(s => s && s.p >= recipeTime(s.r));
   if (idx < 0) return 0;
   const { id } = collectSlot(idx);
@@ -1402,6 +1742,9 @@ function useBooster(id) {
   } else if (id === 'coffee') {
     state.coffee = 10 * 60 * 1000;
     toast('☕ Pomocnicy pracują dwa razy szybciej!');
+  } else if (id === 'fleece') {
+    state.fleece = true;
+    toast('🧣 Pole przykryte agrowłókniną — następny przymrozek nie zaszkodzi.');
   }
   sfx('golden');
   save();
@@ -1638,14 +1981,26 @@ function checkDaily() {
 function advanceWorld(dt) {
   const events = { crops: 0, animals: 0, kitchen: 0 };
   const raining = isRaining();
-  state.tiles.forEach(t => {
+  burnFuel(dt);
+  computeHeated();
+  state.tiles.forEach((t, i) => {
+    if (t.s === 'tree') {
+      if (t.p < t.T) {
+        t.p = Math.min(t.T, t.p + dt * treeMult(heatedTiles.has(i)));
+        if (t.p >= t.T) events.crops++;
+      }
+      return;
+    }
     if (t.s !== 'crop') return;
     if (raining) t.w = true;
     const total = cropTotal(t);
     if (t.p >= total) return;
-    t.p = Math.min(total, t.p + dt * growthMult(t));
+    t.p = Math.min(total, t.p + dt * growthMult(t, heatedTiles.has(i)));
     if (t.p >= total) events.crops++;
   });
+  Object.values(state.processors).forEach(pr => pr.slots.forEach(slot => {
+    if (slot) slot.p += dt;
+  }));
   const aSpeed = animalSpeed();
   state.animals.forEach(animal => {
     if (animal.s !== 'busy') return;
@@ -1719,7 +2074,12 @@ function newDay() {
       weeds++;
     }
     if (projectDone('well') && t.s === 'crop') t.w = true;
+    delete t.frozen;
   });
+  if (season === 3 && Math.random() < 0.45) {
+    state.frost = { day: state.day, hit: false };
+    setTimeout(() => toast('❄️ Prognoza: dziś w nocy przymrozek! Rozpal grzejniki 🔥 albo przykryj pole 🧣.'), 2600);
+  }
   ensureDeals();
   ensureMerchant();
   if (season !== state.seasonSeen) {
@@ -1767,7 +2127,7 @@ function renderHud() {
   const readyKitchen = state.kitchen.filter(s2 => s2 && s2.p >= recipeTime(s2.r)).length;
   const readyOrders = state.orders.filter(o => o.wait === undefined && hasItems(o.items)).length;
   $('badge-animals').textContent = readyAnimals || '';
-  $('badge-kitchen').textContent = readyKitchen || '';
+  $('badge-kitchen').textContent = readyKitchen + readyProcessSlots() || '';
   $('badge-orders').textContent = readyOrders || '';
   $('badge-more').textContent = moreBadges().total || '';
 
@@ -1863,13 +2223,24 @@ const tileSigs = [];
 
 function tileInfo(i) {
   const t = state.tiles[i];
-  const info = { s: t.s, deco: t.deco, buyable: false, price: 0, crop: t.crop, f: 0, ready: false, wet: !!t.w, weed: !!t.weed, crow: !!t.crow, golden: !!t.g };
+  const info = {
+    s: t.s, deco: t.deco, buyable: false, price: 0, crop: t.crop, f: 0, ready: false, wet: !!t.w, weed: !!t.weed, crow: !!t.crow, golden: !!t.g,
+    tree: t.tree, heated: heatedTiles.has(i), frozen: !!t.frozen
+  };
   if (t.s === 'locked') {
     info.buyable = canBuyTile(i);
     info.price = info.buyable ? landPrice() : 0;
   } else if (t.s === 'crop') {
     info.f = Math.min(1, t.p / cropTotal(t));
     info.ready = info.f >= 1;
+  } else if (t.s === 'tree') {
+    info.f = Math.min(1, t.p / t.T);
+    info.ready = info.f >= 1;
+    info.dormant = isWinter() && !info.heated;
+    info.blossom = seasonIndex() === 0 && !info.ready;
+    info.young = !t.fruited;
+  } else if (t.s === 'heater') {
+    info.active = heatersWarm();
   }
   return info;
 }
@@ -1898,11 +2269,19 @@ function tileView(i) {
   }
   if (t.s === 'grass') return { cls: 'tile t-grass', html: '' };
   if (t.s === 'soil') return { cls: 'tile t-soil', html: t.weed ? '<span class="plant weed">🌿</span>' : '' };
+  if (t.s === 'heater') return { cls: `tile t-soil${heatersWarm() ? ' heater-on' : ''}`, html: `<span class="plant">${heatersWarm() ? '🔥' : '🧱'}</span>` };
+  if (t.s === 'tree') {
+    const ready = treeReady(t);
+    return {
+      cls: `tile t-grass${ready ? ' ready' : ''}${heatedTiles.has(i) ? ' heated' : ''}`,
+      html: `<span class="plant">${ready ? TREES[t.tree].icon : isWinter() && !heatedTiles.has(i) ? '🪵' : '🌳'}</span>${ready ? '' : '<span class="pbar"><i></i></span>'}`
+    };
+  }
   const ready = cropReady(t);
   const stage = ready ? 2 : t.p / cropTotal(t) < 0.5 ? 0 : 1;
   const icon = stage === 0 ? '🌱' : ITEMS[t.crop].icon;
   return {
-    cls: `tile t-soil stage${stage}${t.w ? ' wet' : ''}${ready ? ' ready' : ''}${t.g ? ' golden' : ''}`,
+    cls: `tile t-soil stage${stage}${t.w ? ' wet' : ''}${ready ? ' ready' : ''}${t.g ? ' golden' : ''}${heatedTiles.has(i) ? ' heated' : ''}${t.frozen ? ' frozen' : ''}`,
     html: `<span class="plant">${icon}</span>${!t.w && !ready ? '<span class="drop">💧</span>' : ''}${ready ? '' : '<span class="pbar"><i></i></span>'}${crow}`
   };
 }
@@ -1918,10 +2297,9 @@ function renderTile(i) {
     el.innerHTML = view.html;
   }
   const t = state.tiles[i];
-  if (t.s === 'crop' && !cropReady(t)) {
-    const bar = el.querySelector('.pbar i');
-    if (bar) bar.style.width = `${(t.p / cropTotal(t)) * 100}%`;
-  }
+  const bar = el.querySelector('.pbar i');
+  if (bar && t.s === 'crop') bar.style.width = `${(t.p / cropTotal(t)) * 100}%`;
+  if (bar && t.s === 'tree') bar.style.width = `${(t.p / t.T) * 100}%`;
 }
 
 function renderField() {
@@ -1944,18 +2322,36 @@ function renderSeedbar() {
       <span class="time">${fmtTime(c.time)}</span>
     </button>`;
   }).join('');
-  patch($('seedbar'), html);
+  const trees = Object.entries(TREES).map(([id, tr]) => {
+    const locked = state.level < tr.level;
+    return `<button class="seed tree${locked ? ' locked' : ''}${state.seed === id ? ' selected' : ''}" type="button" data-seed="${id}" role="option" aria-selected="${state.seed === id}">
+      <em class="seed-tag tree-tag">Sad</em>
+      <span class="icon">${tr.icon}</span>
+      <span class="cost">${locked ? `🔒 ${tr.level}` : `🪙${tr.cost.coins}${tr.cost.wood ? `+🪵${tr.cost.wood}` : ''}`}</span>
+      <span class="time">co ${fmtTime(tr.regrow)}</span>
+    </button>`;
+  }).join('');
+  const heaterLocked = state.level < HEATER.level;
+  const heater = `<button class="seed heater${heaterLocked ? ' locked' : ''}${state.seed === 'heater' ? ' selected' : ''}${isWinter() ? ' hot' : ''}" type="button" data-seed="heater" role="option" aria-selected="${state.seed === 'heater'}">
+      <em class="seed-tag heat-tag">Zima</em>
+      <span class="icon">${HEATER.icon}</span>
+      <span class="cost">${heaterLocked ? `🔒 ${HEATER.level}` : `🪙${HEATER.cost.coins}`}</span>
+      <span class="time">grzejnik</span>
+    </button>`;
+  patch($('seedbar'), `${html}<span class="seed-sep"></span>${trees}${heater}`);
 }
 
 let tipIndex = 0;
 let tipTimer = 0;
 
 function renderHint() {
-  const crop = cropInfo(state.seed);
   const tips = halloweenActive() ? [...HALLOWEEN_TIPS, ...TIPS] : TIPS;
+  const hasHeaters = state.tiles.some(t => t.s === 'heater');
   let text;
   if (state.tiles.some(t => t.crow)) text = '🐦 Wrony na polu! Dotknij je, żeby przegonić.';
-  else if (state.coins < crop.cost && !state.tiles.some(cropReady)) text = '🪙 Brak monet na nasiona — sprzedaj plony w Stodole.';
+  else if (frostTonight()) text = state.fleece ? '🧣 Pole przykryte — przymrozek nie straszny.' : '❄️ Dziś w nocy przymrozek! Grzejniki 🔥 albo agrowłóknina 🧣 uratują rośliny.';
+  else if (isWinter() && hasHeaters && state.heatCold) text = '🔥 Grzejniki wygasły — potrzebne drewno 🪵 z lasu.';
+  else if (state.coins < seedCost(state.seed) && !state.tiles.some(cropReady)) text = '🪙 Brak monet na nasiona — sprzedaj plony w Stodole.';
   else if (state.tiles.some(t => t.s === 'crop' && !t.w && !cropReady(t)) && !isRaining()) text = '💧 Dotknij spragnionej rośliny, aby ją podlać — urośnie 2× szybciej.';
   else text = tips[tipIndex % tips.length];
   if ($('hint').textContent !== text) $('hint').textContent = text;
@@ -2002,6 +2398,13 @@ function barValue(key) {
     const order = state.orders[idx];
     if (!order || order.wait === undefined) return null;
     return { f: 1 - order.wait / order.total, text: fmtTime(order.wait / 1000) };
+  }
+  if (kind === 'p') {
+    const [pid, k] = raw.split('.');
+    const slot = state.processors[pid] && state.processors[pid].slots[Number(k)];
+    if (!slot) return null;
+    const total = procTime(pid, slot.r);
+    return { f: slot.p / total, text: fmtTime((total - slot.p) / 1000) };
   }
   if (kind === 't') {
     if (!state.trip) return null;
@@ -2084,10 +2487,65 @@ function slotButton(kind, idx, slot, total, extraCls = '') {
   return `<button class="slot kitchen-slot ${extraCls}" type="button" data-act="${act}" data-arg="${idx}"><span class="main">${icon}</span><span class="ptext"></span><span class="pbar" data-bar="${kind}:${idx}"><i></i></span><span class="speed">⚡</span></button>`;
 }
 
+let kitchenTab = 'kitchen';
+
+function renderProcessing() {
+  const cards = Object.entries(PROCESSORS).map(([pid, pr]) => {
+    if (state.level < pr.level) {
+      return `<div class="card locked"><div class="big-icon">${pr.icon}</div><b>${pr.name}</b><p>🔒 Poziom ${pr.level} · ${pr.text}</p></div>`;
+    }
+    const built = state.processors[pid];
+    if (!built) {
+      return `<div class="card proc unbuilt">
+        <div class="card-head"><span class="big-icon">${pr.icon}</span><div class="grow"><h3>${pr.name}</h3><p>${pr.text}</p></div></div>
+        <div class="chips">${costChips(pr.cost)}</div>
+        <button class="btn gold wide" type="button" data-act="buildProc" data-arg="${pid}" ${canAfford(pr.cost) ? '' : 'disabled'}>🔨 Zbuduj</button>
+      </div>`;
+    }
+    const free = built.slots.some(sl => sl === null);
+    const slots = built.slots.map((slot, k) => {
+      if (!slot) return '<div class="slot kitchen-slot empty-slot">Wolne</div>';
+      const r = pr.recipes[slot.r];
+      const icon = r.booster ? BOOSTERS[r.booster].icon : ITEMS[slot.r].icon;
+      if (slot.p >= procTime(pid, slot.r)) {
+        return `<button class="slot kitchen-slot ready" type="button" data-act="procslot" data-arg="${pid}:${k}"><span class="main">${icon}</span><span class="bubble">✅</span></button>`;
+      }
+      return `<button class="slot kitchen-slot" type="button" data-act="procslot" data-arg="${pid}:${k}"><span class="main">${icon}</span><span class="ptext"></span><span class="pbar" data-bar="p:${pid}.${k}"><i></i></span><span class="speed">⚡</span></button>`;
+    }).join('');
+    const recipes = Object.entries(pr.recipes).map(([rid, r]) => {
+      const out = r.booster ? BOOSTERS[r.booster] : ITEMS[rid];
+      return `<div class="recipe">
+        <span class="big-icon">${out.icon}</span>
+        <div class="grow">
+          <h4>${out.name} ×${r.out}</h4>
+          <div class="chips">${chipsFor(r.input)}</div>
+          <div class="meta">⏱ ${fmtTime(procTime(pid, rid) / 1000)}${r.booster ? ' · trafia do 🎒 plecaka' : ` · 🪙 ${sellPrice(rid)}/szt.`}</div>
+        </div>
+        <button class="btn small" type="button" data-act="proc" data-arg="${pid}:${rid}" ${hasItems(r.input) && free ? '' : 'disabled'}>Start</button>
+      </div>`;
+    }).join('');
+    return `<div class="card proc">
+      <div class="card-head"><span class="big-icon">${pr.icon}</span><div class="grow"><h3>${pr.name}</h3><p>${pr.text}</p></div></div>
+      <div class="kitchen-slots${built.slots.length === 2 ? ' two' : built.slots.length === 1 ? ' one' : ''}">${slots}</div>
+      ${recipes}
+    </div>`;
+  }).join('');
+  return `<p class="meta center">Półprodukty z Przetwórni przydadzą się w nowych przepisach kuchni.${projectDone('mill') ? ' 🏞️ Młyn wodny przyspiesza pracę o 25%.' : ''}</p>${cards}`;
+}
+
 function renderKitchen() {
   const box = $('kitchen');
+  const tabs = `<div class="segmented">
+      <button class="${kitchenTab === 'kitchen' ? 'on' : ''}" type="button" data-act="ktab" data-arg="kitchen">🍳 Kuchnia</button>
+      <button class="${kitchenTab === 'process' ? 'on' : ''}" type="button" data-act="ktab" data-arg="process">🏭 Przetwórnia${readyProcessSlots() ? ` <i class="dot">${readyProcessSlots()}</i>` : ''}</button>
+    </div>`;
+  if (kitchenTab === 'process') {
+    patch(box, tabs + renderProcessing());
+    updateBars(box);
+    return;
+  }
   if (state.level < KITCHEN_LEVEL) {
-    patch(box, `<div class="card locked"><div class="big-icon">🍳</div><b>Kuchnia jest zamknięta</b><p>🔒 Odblokujesz ją na poziomie ${KITCHEN_LEVEL}. Przerabiaj plony na droższe przysmaki!</p></div>`);
+    patch(box, `${tabs}<div class="card locked"><div class="big-icon">🍳</div><b>Kuchnia jest zamknięta</b><p>🔒 Odblokujesz ją na poziomie ${KITCHEN_LEVEL}. Przerabiaj plony na droższe przysmaki!</p></div>`);
     return;
   }
   const slots = state.kitchen.map((slot, idx) => slotButton('k', idx, slot, slot ? recipeTime(slot.r) : 0));
@@ -2112,7 +2570,7 @@ function renderKitchen() {
     </div>`;
   }).join('');
   const helper = helperLvl('mietek') ? '<div class="helper-note">👨‍🍳 Kucharz Mietek odbiera potrawy i gotuje je ponownie.</div>' : '';
-  patch(box, `${helper}<div class="card"><div class="kitchen-slots">${slots.join('')}</div><p class="meta center">Dotknij gotującej się potrawy, aby ją przyspieszyć za 🌟.</p></div><div class="card">${recipes}</div>`);
+  patch(box, `${tabs}${helper}<div class="card"><div class="kitchen-slots">${slots.join('')}</div><p class="meta center">Dotknij gotującej się potrawy, aby ją przyspieszyć za 🌟.</p></div><div class="card">${recipes}</div>`);
   updateBars(box);
 }
 
@@ -2450,6 +2908,9 @@ function showHelp() {
       <li>✨ <b>Złote rośliny:</b> rzadko wyrastają same — dają podwójny plon i 🌟.</li>
       <li>🎣 <b>Staw:</b> dotknij wody i zatnij rybę we właściwym momencie.</li>
       <li>🔨 <b>Warsztat:</b> ulepszenia narzędzi i pomocnicy, którzy pracują za Ciebie — nawet gdy gra jest zamknięta.</li>
+      <li>🍎 <b>Sad:</b> drzewka z paska nasion sadzisz raz, a owoce zbierasz co kilka minut. Zimą śpią, chyba że je ogrzejesz.</li>
+      <li>🏭 <b>Przetwórnia:</b> w zakładce Kuchnia zbudujesz młyn, tłocznię, mleczarnię, olejarnię i wytwórnię nawozu.</li>
+      <li>🔥 <b>Zima:</b> przymrozki niszczą rośliny. Grzejniki palą drewno i ogrzewają grządki dookoła.</li>
       <li>🏘️ <b>Wieś i las:</b> wysyłaj wyprawy po drewno 🪵, kamień 🪨 i gwoździe 🔩, a potem odbuduj wieś dla stałych bonusów.</li>
       <li>🧳 <b>Kupiec:</b> codziennie inne towary i wzmacniacze do 🎒 plecaka.</li>
       <li>🌟 <b>Złote kłosy:</b> zdobywasz za zadania, osiągnięcia i złote plony. Przyspieszają potrawy i opłacają najlepsze ulepszenia.</li>
@@ -2656,6 +3117,26 @@ function showWhatsNew() {
   });
 }
 
+function showWhatsNewV4() {
+  if (state.seenV4 || !state.seenIntro) {
+    state.seenV4 = true;
+    return;
+  }
+  state.seenV4 = true;
+  showModal({
+    hero: '🍎',
+    title: 'Sad, przetwórnia i zima!',
+    body: `<ul>
+      <li>🍎 <b>Sad:</b> jabłonie, wiśnie, grusze i brzoskwinie sadzisz raz — owocują w kółko. Dwa ule zapylają sad 🐝.</li>
+      <li>🏭 <b>Przetwórnia</b> (zakładka Kuchnia): młyn zbożowy, tłocznia soków, mleczarnia, olejarnia i wytwórnia nawozu.</li>
+      <li>🥐 <b>Nowe przepisy:</b> frytki, rogaliki maślane, pączki z dżemem, babeczki wiśniowe.</li>
+      <li>🥶 <b>Przymrozki zimą</b> — stawiaj 🔥 grzejniki, które palą drewno i ogrzewają grządki dookoła, albo przykryj pole 🧣 agrowłókniną.</li>
+      <li>📜 5 nowych zadań i 3 nowe osiągnięcia.</li>
+    </ul><p>Na start: <b>🍎 sadzonka jabłoni za darmo</b> (🪙 120 na koncie)!</p>`,
+    buttons: [{ label: 'Super!', cls: 'gold', onClick: () => { addCoins(120); save(); renderAll(); } }]
+  });
+}
+
 function showEventIntro() {
   if (!halloweenActive() || state.event.seenIntro === state.event.year) return;
   state.event.seenIntro = state.event.year;
@@ -2676,7 +3157,7 @@ function showEventIntro() {
 /* ---------- Input ---------- */
 
 let drag = null;
-const DRAG_ACTIONS = new Set(['plow', 'plant', 'water', 'harvest', 'weed', 'scare']);
+const DRAG_ACTIONS = new Set(['plow', 'plant', 'water', 'harvest', 'weed', 'scare', 'fruit']);
 
 function tileFromPoint(x, y) {
   if (farm3d) return farm3d.pick(x, y);
@@ -2700,7 +3181,10 @@ function bindInput() {
     const action = tileAction(i);
     if (action === 'buy') return askBuyTile(i);
     if (action === 'info') return showCropInfo(i);
+    if (action === 'treeinfo') return showTreeInfo(i);
+    if (action === 'heaterinfo') return showHeaterInfo(i);
     if (!action || !doAction(i, action)) return;
+    if (action === 'plant' && (TREES[state.seed] || state.seed === 'heater')) return;
     drag = { action, done: new Set([i]) };
     try { surface.setPointerCapture(e.pointerId); } catch { /* starsze przeglądarki */ }
   });
@@ -2740,6 +3224,21 @@ function bindInput() {
     if (!btn) return;
     unlockAudio();
     const id = btn.dataset.seed;
+    if (TREES[id] || id === 'heater') {
+      const def = TREES[id] || HEATER;
+      if (state.level < def.level) {
+        toast(`${def.icon} ${def.name} — odblokujesz na poziomie ${def.level}.`);
+        return;
+      }
+      state.seed = id;
+      sfx('plant');
+      toast(TREES[id]
+        ? `${def.icon} ${def.name}: ${rewardText(def.cost)}. Pierwsze owoce po ${fmtTime(def.grow)}, potem co ${fmtTime(def.regrow)}. Dotknij grządki, by posadzić.`
+        : `🔥 Grzejnik: ${rewardText(def.cost)}. Zimą ogrzewa grządki dookoła i chroni przed przymrozkiem. Pali drewno 🪵.`);
+      renderSeedbar();
+      renderHint();
+      return;
+    }
     const c = cropInfo(id);
     if (state.level < c.level) {
       toast(`${itemLabel(id)} — odblokujesz na poziomie ${c.level}.`);
@@ -2785,7 +3284,11 @@ function bindInput() {
     'trip-collect': () => collectTrip(),
     buyOffer: arg => buyOffer(Number(arg)),
     quest: () => claimQuest(),
-    ach: arg => claimAchievement(arg)
+    ach: arg => claimAchievement(arg),
+    ktab: arg => { kitchenTab = arg; },
+    buildProc: arg => buildProcessor(arg),
+    proc: arg => { const [pid, rid] = arg.split(':'); startProcess(pid, rid); },
+    procslot: (arg, el) => { const [pid, k] = arg.split(':'); tapProcess(pid, Number(k), el); }
   };
 
   ['animals', 'kitchen', 'orders', 'barn', 'event', 'more', 'workshop', 'village', 'merchant', 'trophies'].forEach(id => {
@@ -2856,6 +3359,7 @@ function tick() {
     events = advanceWorld(dt);
     runHelpers(dt, false);
     crowTick(dt);
+    frostTick();
   }
   advanceClock(Math.min(dt, 10000));
   if (events.crops && activeView !== 'farm' && !helperLvl('jozek')) toast(`🌾 Plony dojrzały (${events.crops})!`);
@@ -2922,6 +3426,8 @@ function initGraphics() {
         dog: () => upg('dog') > 0,
         greenhouse: () => upg('greenhouse') > 0,
         projects: () => Object.keys(state.projects).filter(projectDone),
+        processors: () => Object.keys(state.processors),
+        frostNight: () => frostTonight() && hourOfDay() >= 20,
         fishingReady: () => state.level >= FISHING_LEVEL && state.fishCd <= 0
       });
     } catch (err) {
@@ -2943,6 +3449,7 @@ function init() {
   if (state.seenIntro) welcomeBack();
   else showIntro();
   showWhatsNew();
+  showWhatsNewV4();
   showEventIntro();
   checkDaily();
   while (state.orders.length < orderSlots()) state.orders.push(makeOrder());
