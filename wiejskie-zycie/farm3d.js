@@ -297,9 +297,178 @@ function cropModel(type, ripe, rnd) {
       add(mesh(G.cyl(0.025, 0.035, 0.1, 5), mat('#6d4c25'), 0, 0.42, 0));
       break;
     }
+    case 'cabbage': {
+      grid(rnd, 4, 0.2).forEach(([x, z]) => {
+        const outer = add(mesh(G.ico(0.15), mat('#6fa83c'), x, 0.08, z));
+        outer.scale.set(1.25, 0.55, 1.25);
+        add(mesh(G.ico(ripe ? 0.12 : 0.08, 1), mat(ripe ? '#b5d98a' : '#8cc152'), x, 0.14, z));
+      });
+      break;
+    }
+    case 'cucumber': {
+      const leaf = mat('#3f8a2f');
+      [-0.22, 0.22].forEach(x => {
+        add(mesh(G.cyl(0.012, 0.012, 0.62, 4), mat('#8d6e4a'), x, 0.31, -0.08));
+        for (let k = 0; k < 3; k++) {
+          const l = add(mesh(G.ico(0.1), leaf, x + (rnd() - 0.5) * 0.16, 0.14 + k * 0.15, (rnd() - 0.5) * 0.12));
+          l.scale.set(1.2, 0.5, 1);
+        }
+        if (ripe) {
+          [0, 1].forEach(k => {
+            const c = add(mesh(G.cyl(0.035, 0.035, 0.2, 6), mat('#2e7d32'), x + 0.1, 0.16 + k * 0.18, 0.08));
+            c.rotation.z = 0.3;
+          });
+        }
+      });
+      break;
+    }
     default:
       break;
   }
+  return g;
+}
+
+function crowModel() {
+  const g = new THREE.Group();
+  const black = mat('#1f1d24');
+  const body = mesh(G.sphere(0.09, 7, 5), black, 0, 0.12, 0);
+  body.scale.set(0.9, 0.85, 1.4);
+  g.add(body);
+  g.add(mesh(G.sphere(0.06, 6, 5), black, 0, 0.2, 0.1));
+  const beak = mesh(G.cone(0.022, 0.08, 4), mat('#f2b134'), 0, 0.2, 0.18);
+  beak.rotation.x = Math.PI / 2;
+  g.add(beak);
+  const tail = mesh(G.box(0.08, 0.02, 0.14), black, 0, 0.12, -0.16);
+  tail.rotation.x = 0.4;
+  g.add(tail);
+  [-1, 1].forEach(sd => g.add(mesh(G.box(0.02, 0.07, 0.16), black, sd * 0.08, 0.14, -0.01)));
+  [-0.03, 0.03].forEach(x => g.add(mesh(G.cyl(0.008, 0.008, 0.06, 3), mat('#f2b134'), x, 0.03, 0)));
+  g.scale.setScalar(1.7);
+  return g;
+}
+
+function personModel({ shirt, hat = 'straw' }) {
+  const g = new THREE.Group();
+  [-0.05, 0.05].forEach(x => g.add(mesh(G.cyl(0.035, 0.035, 0.22, 5), mat('#3b4a6b'), x, 0.11, 0)));
+  g.add(mesh(G.cyl(0.1, 0.11, 0.26, 7), mat(shirt), 0, 0.34, 0));
+  g.add(mesh(G.sphere(0.08, 8, 6), mat('#f1c27d'), 0, 0.55, 0));
+  if (hat === 'straw') {
+    g.add(mesh(G.cyl(0.16, 0.16, 0.02, 10), mat('#e5c06a'), 0, 0.6, 0));
+    g.add(mesh(G.cyl(0.07, 0.09, 0.08, 8), mat('#e5c06a'), 0, 0.65, 0));
+  } else if (hat === 'scarf') {
+    g.add(mesh(G.cap(0.088), mat('#d84a3a'), 0, 0.56, 0));
+  } else {
+    g.add(mesh(G.cyl(0.09, 0.07, 0.16, 8), mat('#ffffff'), 0, 0.68, 0));
+  }
+  [-1, 1].forEach(sd => {
+    const arm = mesh(G.cyl(0.025, 0.025, 0.2, 4), mat(shirt), sd * 0.13, 0.36, 0);
+    arm.rotation.z = sd * 0.3;
+    g.add(arm);
+  });
+  g.scale.setScalar(1.25);
+  return g;
+}
+
+function dogModel() {
+  const g = new THREE.Group();
+  const fur = mat('#a0672e');
+  const dark = mat('#5d3a1a');
+  g.add(mesh(G.box(0.16, 0.14, 0.32), fur, 0, 0.2, 0));
+  g.add(mesh(G.box(0.14, 0.13, 0.14), fur, 0, 0.3, 0.2));
+  g.add(mesh(G.box(0.08, 0.06, 0.08), dark, 0, 0.27, 0.3));
+  [-1, 1].forEach(sd => g.add(mesh(G.box(0.04, 0.08, 0.05), dark, sd * 0.06, 0.4, 0.18)));
+  [[-0.05, -0.11], [0.05, -0.11], [-0.05, 0.11], [0.05, 0.11]].forEach(([x, z]) => g.add(mesh(G.cyl(0.025, 0.025, 0.14, 4), fur, x, 0.07, z)));
+  const tail = mesh(G.cyl(0.015, 0.02, 0.14, 4), fur, 0, 0.3, -0.18);
+  tail.rotation.x = -0.8;
+  g.add(tail);
+  g.userData.tail = tail;
+  g.scale.setScalar(1.3);
+  return g;
+}
+
+function wellModel() {
+  const g = new THREE.Group();
+  g.add(mesh(G.cyl(0.3, 0.33, 0.32, 10), mat('#9e9e9e'), 0, 0.16, 0));
+  g.add(mesh(G.cyl(0.24, 0.24, 0.02, 10), mat('#4fa3d9'), 0, 0.3, 0, false));
+  [-1, 1].forEach(sd => g.add(mesh(G.box(0.06, 0.6, 0.06), mat('#7a5230'), sd * 0.26, 0.5, 0)));
+  const roof = mesh(G.gable(0.75, 0.25, 0.5), mat('#8d4b2a'), 0, 0.8, 0);
+  g.add(roof);
+  g.add(mesh(G.cyl(0.06, 0.05, 0.1, 6), mat('#6b4423'), 0.1, 0.55, 0));
+  return g;
+}
+
+function waterMillModel() {
+  const g = gabledBuilding({ w: 1.0, h: 0.8, d: 0.9, roofH: 0.45, wall: '#d7b98e', roof: '#7a4a2a' });
+  const wheel = new THREE.Group();
+  wheel.position.set(-0.6, 0.45, 0);
+  const rim = mesh(G.cyl(0.45, 0.45, 0.1, 12), mat('#6b4423'));
+  rim.rotation.z = Math.PI / 2;
+  wheel.add(rim);
+  for (let k = 0; k < 6; k++) {
+    const paddle = mesh(G.box(0.14, 0.95, 0.08), mat('#8d6e4a'));
+    paddle.rotation.x = (k * Math.PI) / 6;
+    wheel.add(paddle);
+  }
+  g.add(wheel);
+  g.userData.wheel = wheel;
+  return g;
+}
+
+function hallModel() {
+  const g = gabledBuilding({ w: 2.0, h: 1.0, d: 1.4, roofH: 0.6, wall: '#9ec5e8', roof: '#4a5a7a' });
+  g.add(mesh(G.box(0.4, 0.6, 0.05), mat('#6b4423'), 0, 0.3, 0.72, false));
+  [-0.6, 0.6].forEach(x => g.add(mesh(G.box(0.3, 0.3, 0.05), mat('#fff6d5'), x, 0.6, 0.72, false)));
+  g.add(mesh(G.cyl(0.02, 0.02, 1.4, 4), mat('#dddddd'), 1.15, 0.7, 0.5));
+  g.add(mesh(G.box(0.4, 0.13, 0.02), mat('#ffffff'), 1.36, 1.3, 0.5, false));
+  g.add(mesh(G.box(0.4, 0.13, 0.02), mat('#dc143c'), 1.36, 1.17, 0.5, false));
+  return g;
+}
+
+function bridgeModel() {
+  const g = new THREE.Group();
+  const deck = mesh(G.box(2.9, 0.07, 0.55), mat('#a8743f'), 0, 0.14, 0);
+  deck.receiveShadow = true;
+  g.add(deck);
+  for (let k = -3; k <= 3; k++) {
+    [-1, 1].forEach(sd => g.add(mesh(G.cyl(0.025, 0.03, 0.3, 4), mat('#7a5230'), k * 0.45, 0.28, sd * 0.25)));
+  }
+  [-1, 1].forEach(sd => g.add(mesh(G.box(2.8, 0.04, 0.04), mat('#c08a52'), 0, 0.4, sd * 0.25)));
+  return g;
+}
+
+function shrineModel() {
+  const g = new THREE.Group();
+  g.add(mesh(G.box(0.4, 0.12, 0.4), mat('#9e9e9e'), 0, 0.06, 0));
+  g.add(mesh(G.box(0.32, 0.75, 0.32), mat('#efe9dc'), 0, 0.5, 0));
+  g.add(mesh(G.box(0.18, 0.22, 0.03), mat('#4a6fa5'), 0, 0.62, 0.17, false));
+  g.add(mesh(G.gable(0.46, 0.2, 0.42), mat('#b33a2e'), 0, 0.88, 0));
+  g.add(mesh(G.box(0.03, 0.22, 0.03), mat('#d4af37'), 0, 1.18, 0));
+  g.add(mesh(G.box(0.13, 0.03, 0.03), mat('#d4af37'), 0, 1.22, 0));
+  [-0.18, 0.18].forEach(x => g.add(mesh(G.sphere(0.05, 5, 4), mat('#ff6f91'), x, 0.05, 0.25, false)));
+  return g;
+}
+
+function firehallModel() {
+  const g = gabledBuilding({ w: 1.6, h: 1.1, d: 1.4, roofH: 0.5, wall: '#c0392b', roof: '#3e3e3e' });
+  g.add(mesh(G.box(0.8, 0.8, 0.05), mat('#eeeeee'), 0, 0.4, 0.72, false));
+  g.add(mesh(G.box(0.42, 2.0, 0.42), mat('#b03024'), 0.95, 1.0, -0.3));
+  g.add(mesh(G.cone(0.34, 0.4, 4), mat('#3e3e3e'), 0.95, 2.2, -0.3));
+  g.add(mesh(G.sphere(0.06, 6, 5), glow('#4fc3ff'), 0.95, 1.85, -0.07, false));
+  return g;
+}
+
+function greenhouseModel() {
+  const g = new THREE.Group();
+  const glass = new THREE.MeshLambertMaterial({ color: '#d5f3ff', transparent: true, opacity: 0.42, depthWrite: false });
+  g.add(mesh(G.box(1.4, 0.7, 0.9), glass, 0, 0.35, 0, false));
+  g.add(mesh(G.gable(1.4, 0.35, 0.9), glass, 0, 0.7, 0, false));
+  [-0.6, -0.2, 0.2, 0.6].forEach(x => {
+    const plant = mesh(G.ico(0.14), mat('#5fae40'), x, 0.16, 0);
+    plant.scale.y = 1.2;
+    g.add(plant);
+    g.add(mesh(G.sphere(0.04, 5, 4), mat('#e53935'), x + 0.06, 0.24, 0.08, false));
+  });
+  [-0.7, 0.7].forEach(x => g.add(mesh(G.box(0.03, 0.7, 0.92), mat('#ffffff'), x, 0.35, 0)));
   return g;
 }
 
@@ -671,11 +840,32 @@ export function createFarm3D(canvas, api) {
     if (Math.abs(x) < 3.6 && z < hz + 2.6) continue;
     scene.add(mesh(G.sphere(0.05, 5, 4), mat(flowerColors[k % 4]), x, -0.08, z, false));
   }
-  const pond = new THREE.Mesh(new THREE.CircleGeometry(1.1, 18), new THREE.MeshLambertMaterial({ color: '#4fa3d9' }));
+  const POND = { x: 2.6, z: hz + 1.7, rx: 1.3, rz: 0.75 };
+  const pond = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshLambertMaterial({ color: '#4fa3d9' }));
   pond.rotation.x = -Math.PI / 2;
-  pond.position.set(5.2, -0.12, hz + 2.4);
-  pond.scale.set(1.3, 0.8, 1);
+  pond.position.set(POND.x, -0.11, POND.z);
+  pond.scale.set(POND.rx, POND.rz, 1);
+  pond.receiveShadow = true;
   scene.add(pond);
+  const shore = new THREE.Mesh(new THREE.CircleGeometry(1, 20), mat('#c9b37a'));
+  shore.rotation.x = -Math.PI / 2;
+  shore.position.set(POND.x, -0.125, POND.z);
+  shore.scale.set(POND.rx + 0.15, POND.rz + 0.12, 1);
+  scene.add(shore);
+  [[-0.9, -0.3], [0.95, 0.35], [-0.6, 0.45]].forEach(([dx, dz]) => {
+    for (let k = 0; k < 4; k++) {
+      const reed = mesh(G.cyl(0.012, 0.015, 0.4, 3), mat('#5e8c31'), POND.x + dx + (k - 1.5) * 0.06, 0.05, POND.z + dz + (k % 2) * 0.05, false);
+      reed.rotation.z = (k - 1.5) * 0.12;
+      scene.add(reed);
+    }
+  });
+  [[0.3, 0.1], [-0.35, -0.15], [0.7, -0.2]].forEach(([dx, dz]) => {
+    const pad = mesh(G.cyl(0.12, 0.12, 0.01, 8), mat('#4caf50'), POND.x + dx, -0.1, POND.z + dz, false);
+    scene.add(pad);
+  });
+  const fishSign = sprite('🎣', 'bubble', 0.6, 0.3);
+  fishSign.position.set(POND.x, 0.85, POND.z);
+  scene.add(fishSign);
 
   // Clouds: invisible to the camera, but their shadows drift over the field
   const cloudMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
@@ -716,7 +906,7 @@ export function createFarm3D(canvas, api) {
   doorLantern.position.set(house.position.x + 0.75, -0.14, house.position.z + 1.05);
   spooky.add(doorLantern);
   const cauldron = cauldronModel();
-  cauldron.position.set(-1.0, -0.14, hz + 0.8);
+  cauldron.position.set(-1.1, -0.14, hz + 0.8);
   cauldron.scale.setScalar(0.85);
   spooky.add(cauldron);
   const bats = [];
@@ -749,12 +939,85 @@ export function createFarm3D(canvas, api) {
   decor.scarecrow.rotation.y = 0.3;
   const gold = mesh(G.pumpkin(0.6), new THREE.MeshLambertMaterial({ color: '#ffcf33', emissive: '#b8860b', emissiveIntensity: 0.35, flatShading: true }), 0, 0.42, 0);
   decor.goldpumpkin.add(gold, mesh(G.cyl(0.06, 0.09, 0.25, 6), mat('#5d4025'), 0, 0.92, 0));
-  decor.goldpumpkin.position.set(2.7, -0.14, hz + 0.85);
+  decor.goldpumpkin.position.set(0.6, -0.14, hz + 0.85);
   decor.goldpumpkin.scale.setScalar(0.8);
   Object.values(decor).forEach(d => {
     d.visible = false;
     scene.add(d);
   });
+
+  // Village projects appear as buildings once finished
+  const village = {
+    well: wellModel(),
+    mill: waterMillModel(),
+    hall: hallModel(),
+    bridge: bridgeModel(),
+    shrine: shrineModel(),
+    firehall: firehallModel()
+  };
+  village.well.position.set(-1.9, -0.14, hz + 2.3);
+  village.shrine.position.set(-3.4, -0.14, hz + 2.2);
+  village.mill.position.set(POND.x + 2.1, -0.14, POND.z - 0.1);
+  village.mill.rotation.y = -0.2;
+  village.bridge.position.set(POND.x, -0.14, POND.z);
+  village.hall.position.set(-6.4, -0.14, -0.6);
+  village.hall.rotation.y = 0.9;
+  village.firehall.position.set(6.3, -0.14, 0.4);
+  village.firehall.rotation.y = -0.9;
+  const greenhouse = greenhouseModel();
+  greenhouse.position.set(-5.3, -0.14, -4.1);
+  greenhouse.rotation.y = 0.3;
+  [...Object.values(village), greenhouse].forEach(b => {
+    b.visible = false;
+    scene.add(b);
+  });
+
+  // Helpers and the dog
+  const jozek = personModel({ shirt: '#4a7bd0', hat: 'straw' });
+  const basia = personModel({ shirt: '#c2185b', hat: 'scarf' });
+  const mietek = personModel({ shirt: '#f5f5f5', hat: 'chef' });
+  const dog = dogModel();
+  jozek.position.set(-hx - 0.45, -0.14, 0);
+  basia.position.set(-1.5, -0.12, -hz - 2.0);
+  basia.userData.target = basia.position.clone();
+  mietek.position.set(house.position.x + 1.1, -0.14, house.position.z + 1.2);
+  dog.position.set(hx + 0.5, -0.14, hz - 1);
+  [jozek, basia, mietek, dog].forEach(o => {
+    o.visible = false;
+    scene.add(o);
+  });
+
+  // Snow (winter)
+  const FLAKES = 450;
+  const snowPos = new Float32Array(FLAKES * 3);
+  for (let k = 0; k < FLAKES; k++) snowPos.set([(rnd() - 0.5) * 20, rnd() * 9, (rnd() - 0.5) * 24 - 2], k * 3);
+  const snowGeo = new THREE.BufferGeometry();
+  snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+  const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 4, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false }));
+  snow.frustumCulled = false;
+  scene.add(snow);
+
+  // Seasonal recolouring of shared materials
+  const SEASONAL = [
+    ['#4f9a35', 'canopy'], ['#63b043', 'canopy2'], ['#4e8f2f', 'bush'], ['#2f7a3b', 'pine'], ['#358a43', 'pine'], ['#3d9a4c', 'pine'],
+    ['#7cb342', 'ground'], ['#5d8f2f', 'ground'], ['#8bc34a', 'grass'], ['#6a9c3c', 'grass'], ['#79ab45', 'grass'], ['#6fae3a', 'grass']
+  ].map(([color, kind]) => ({ m: mat(color), base: new THREE.Color(color), kind }));
+  const TINTS = [
+    { canopy: ['#9be07a', 0.25], canopy2: ['#f7b6d2', 0.45], bush: ['#9be07a', 0.25], pine: ['#7ccf6a', 0.1], ground: ['#a5e05a', 0.25], grass: ['#a5e05a', 0.2] },
+    {},
+    { canopy: ['#e0892e', 0.75], canopy2: ['#d04a2a', 0.7], bush: ['#c47a2c', 0.55], pine: ['#5b6e2a', 0.2], ground: ['#b8a948', 0.35], grass: ['#c2b14d', 0.3] },
+    { canopy: ['#eef4f7', 0.7], canopy2: ['#eef4f7', 0.7], bush: ['#eef4f7', 0.6], pine: ['#eef4f7', 0.35], ground: ['#f2f6f8', 0.85], grass: ['#f2f6f8', 0.7] }
+  ];
+  let seasonShown = -1;
+  const tint = new THREE.Color();
+  function applySeason(season) {
+    seasonShown = season;
+    SEASONAL.forEach(({ m, base, kind }) => {
+      const t = TINTS[season][kind];
+      m.color.copy(base);
+      if (t) m.color.lerp(tint.set(t[0]), t[1]);
+    });
+  }
 
   /* ---------- Tiles ---------- */
 
@@ -763,6 +1026,7 @@ export function createFarm3D(canvas, api) {
   const ridgeGeo = G.box(0.88, 0.06, 0.15);
   const ringGeo = G.ring(0.36, 0.46);
   const ringMat = new THREE.MeshBasicMaterial({ color: '#ffd54f', transparent: true, opacity: 0.8, depthWrite: false });
+  const goldMat = new THREE.MeshLambertMaterial({ color: '#ffd54f', emissive: '#b8860b', emissiveIntensity: 0.5, flatShading: true });
   const BASES = {
     grass: mat('#8bc34a'),
     soil: mat('#8d5a3b'),
@@ -791,6 +1055,8 @@ export function createFarm3D(canvas, api) {
     t.content = null;
     t.drop = null;
     t.ring = null;
+    t.crow = null;
+    t.sparkle = null;
     const r = mulberry32(i * 97 + 13);
 
     let baseKey = 'grass';
@@ -823,6 +1089,13 @@ export function createFarm3D(canvas, api) {
         t.content = weedModel(r);
       } else if (info.s === 'crop') {
         t.content = info.stage === 0 ? sproutModel(r) : cropModel(info.crop, info.ready, r);
+        if (info.golden) {
+          t.content.traverse(o => {
+            if (o.isMesh) o.material = goldMat;
+          });
+          t.sparkle = extra(sprite('✨', 'plain', 0.5, 0.25));
+          t.sparkle.position.set(-0.25, 0.9, 0.1);
+        }
         if (!info.wet && !info.ready) {
           t.drop = extra(sprite('💧', 'plain', 0.42, 0.21));
           t.drop.position.set(0.28, 0.75, 0.1);
@@ -834,6 +1107,10 @@ export function createFarm3D(canvas, api) {
         }
       }
       if (t.content) t.group.add(t.content);
+    }
+    if (info.crow) {
+      t.crow = extra(crowModel());
+      t.crow.position.set(0.12, 0.3, 0.12);
     }
   }
 
@@ -927,10 +1204,62 @@ export function createFarm3D(canvas, api) {
     });
   }
 
+  /* ---------- Helpers & dog ---------- */
+
+  const walkTo = (obj, x, z, speed, dt, time) => {
+    const dx = x - obj.position.x;
+    const dz = z - obj.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.05) {
+      obj.position.y = -0.14;
+      return true;
+    }
+    const step = Math.min(dist, speed * dt);
+    obj.position.x += (dx / dist) * step;
+    obj.position.z += (dz / dist) * step;
+    const yaw = Math.atan2(dx, dz);
+    obj.rotation.y += Math.atan2(Math.sin(yaw - obj.rotation.y), Math.cos(yaw - obj.rotation.y)) * Math.min(1, dt * 8);
+    obj.position.y = -0.14 + Math.abs(Math.sin(time * 12)) * 0.04;
+    return false;
+  };
+
+  function animateHelpers(dt, time) {
+    const h = api.helpers();
+    jozek.visible = !!h.jozek;
+    basia.visible = !!h.basia;
+    mietek.visible = !!h.mietek;
+    dog.visible = api.dog();
+    if (jozek.visible) {
+      const target = api.helperTarget();
+      if (target >= 0) walkTo(jozek, tileX(target % cols), tileZ(Math.floor(target / cols)) + 0.45, 3, dt, time);
+    }
+    if (basia.visible) {
+      const u = basia.userData;
+      if (walkTo(basia, u.target.x, u.target.z, 0.8, dt, time)) {
+        u.wait = (u.wait || 0) - dt;
+        if (u.wait <= 0) {
+          u.target.set(PEN.x0 + 0.4 + Math.random() * (penW - 0.8), 0, PEN.z0 + 0.4 + Math.random() * (penD - 0.8));
+          u.wait = 1.5 + Math.random() * 2;
+        }
+      }
+    }
+    if (mietek.visible) mietek.rotation.y = Math.sin(time * 0.7) * 0.6;
+    if (dog.visible) {
+      const crowTile = tiles.findIndex(t => t.crow);
+      if (crowTile >= 0) walkTo(dog, tileX(crowTile % cols), tileZ(Math.floor(crowTile / cols)) + 0.3, 4.5, dt, time);
+      else {
+        const ang = time * 0.25;
+        walkTo(dog, Math.cos(ang) * (hx + 0.5), Math.sin(ang) * (hz + 0.5), 1.4, dt, time);
+      }
+      dog.userData.tail.rotation.z = Math.sin(time * 14) * 0.6;
+    }
+  }
+
   /* ---------- Camera ---------- */
 
   const framePts = [];
   [-1, 1].forEach(sx => [-1, 1].forEach(sz => [0, 0.6].forEach(y => framePts.push(new THREE.Vector3(sx * hx, y, sz * hz)))));
+  framePts.push(new THREE.Vector3(POND.x, 0, POND.z + 0.3));
   const tmp = new THREE.Vector3();
   let viewW = 1;
   let viewH = 1;
@@ -965,8 +1294,8 @@ export function createFarm3D(canvas, api) {
       maxX += extra / 2;
     } else {
       const extra = w / aspect - h;
-      maxY += extra * 0.62;
-      minY -= extra * 0.38;
+      maxY += extra * 0.6;
+      minY -= extra * 0.4;
     }
     camera.left = minX;
     camera.right = maxX;
@@ -1003,7 +1332,8 @@ export function createFarm3D(canvas, api) {
     const weather = api.weather();
     const halloween = api.halloween();
     skyAt(h, skyColor);
-    if (weather !== 'sunny') skyColor.lerp(cA.set('#8c96a0'), weather === 'rain' ? 0.5 : 0.28);
+    if (weather === 'snow') skyColor.lerp(cA.set('#c9d3dc'), 0.5);
+    else if (weather !== 'sunny') skyColor.lerp(cA.set('#8c96a0'), weather === 'rain' ? 0.5 : 0.28);
     const night = h >= 20.5 || h < 5.5;
     if (halloween && (h >= 18 || h < 6.5)) skyColor.lerp(cA.set('#4a2a6b'), 0.35);
     scene.background.copy(skyColor);
@@ -1011,7 +1341,7 @@ export function createFarm3D(canvas, api) {
 
     const p = Math.min(1, Math.max(0, (h - 5.5) / 15));
     const elev = Math.sin(Math.PI * p);
-    const dim = weather === 'rain' ? 0.45 : weather === 'cloudy' ? 0.7 : 1;
+    const dim = weather === 'rain' ? 0.45 : weather === 'snow' ? 0.6 : weather === 'cloudy' ? 0.7 : 1;
     if (!night) {
       sun.position.set(Math.cos(Math.PI * p) * -12, 4 + elev * 14, 6);
       sun.color.set('#ffb36b').lerp(cA.set('#fff6e5'), Math.min(1, elev * 1.6));
@@ -1027,6 +1357,7 @@ export function createFarm3D(canvas, api) {
     }
     windowMat.emissiveIntensity = night || h > 19.5 ? 1.1 : 0;
     rain.visible = weather === 'rain';
+    snow.visible = weather === 'snow';
     return { night, halloween, dusk: h >= 18 || h < 6.5 };
   }
 
@@ -1054,7 +1385,7 @@ export function createFarm3D(canvas, api) {
     for (let i = 0; i < tiles.length; i++) {
       const info = api.tile(i);
       info.stage = info.s === 'crop' ? (info.ready ? 2 : info.f < 0.3 ? 0 : 1) : -1;
-      const sig = `${info.s}|${info.deco}|${info.buyable ? info.price : ''}|${info.crop}|${info.stage}|${info.wet}|${info.weed}`;
+      const sig = `${info.s}|${info.deco}|${info.buyable ? info.price : ''}|${info.crop}|${info.stage}|${info.wet}|${info.weed}|${info.crow}|${info.golden}`;
       const t = tiles[i];
       if (sig !== t.sig) {
         t.sig = sig;
@@ -1074,7 +1405,35 @@ export function createFarm3D(canvas, api) {
         t.content.position.y = lift;
       }
       if (t.drop) t.drop.position.y = 0.75 + Math.sin(time * 4 + i) * 0.06;
+      if (t.sparkle) t.sparkle.position.y = 0.9 + Math.sin(time * 3 + i) * 0.08;
+      if (t.crow) {
+        t.crow.position.y = 0.3 + Math.abs(Math.sin(time * 5 + i)) * 0.08;
+        t.crow.rotation.y = Math.sin(time * 2 + i) * 0.8;
+        t.crow.children[1].position.y = 0.2 - Math.max(0, Math.sin(time * 9 + i)) * 0.05;
+      }
     }
+
+    if (seasonShown !== api.season()) applySeason(api.season());
+    if (snow.visible) {
+      const pos = snowGeo.attributes.position;
+      for (let k = 0; k < FLAKES; k++) {
+        let y = pos.array[k * 3 + 1] - dt * 1.1;
+        if (y < 0) y += 9;
+        pos.array[k * 3 + 1] = y;
+        pos.array[k * 3] += Math.sin(time + k) * dt * 0.25;
+      }
+      pos.needsUpdate = true;
+    }
+
+    const done = api.projects();
+    Object.entries(village).forEach(([id, obj]) => {
+      obj.visible = done.includes(id);
+    });
+    if (village.mill.visible) village.mill.userData.wheel.rotation.x -= dt * 0.8;
+    greenhouse.visible = api.greenhouse();
+    fishSign.visible = api.fishingReady();
+    if (fishSign.visible) fishSign.position.y = 0.85 + Math.sin(time * 2.5) * 0.08;
+    animateHelpers(dt, time);
 
     syncAnimals(api.animals());
     animateAnimals(api.animals(), dt, time);
@@ -1149,6 +1508,7 @@ export function createFarm3D(canvas, api) {
     ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     if (!raycaster.ray.intersectPlane(plane, hit)) return -1;
+    if (((hit.x - POND.x) / POND.rx) ** 2 + ((hit.z - POND.z) / POND.rz) ** 2 <= 1) return -2;
     const c = Math.round(hit.x / STEP + (cols - 1) / 2);
     const r = Math.round(hit.z / STEP + (rows - 1) / 2);
     if (c < 0 || c >= cols || r < 0 || r >= rows) return -1;
