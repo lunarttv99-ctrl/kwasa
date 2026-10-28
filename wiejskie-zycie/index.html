@@ -49,6 +49,8 @@
             <button class="event-pill hidden" id="eventPill" type="button">🎃 Halloween · <b id="eventPillPts">0</b> 👻</button>
           </div>
           <button class="quest-card hidden" id="questCard" type="button"></button>
+          <button class="owl-btn" id="owlBtn" type="button" aria-label="Sowa Mądralińska — pomocnik">🦉<i class="badge" id="owlBadge"></i></button>
+          <button class="owl-bubble hidden" id="owlBubble" type="button"></button>
         </div>
         <div class="sky" id="sky">
           <span class="sun" id="sun">☀️</span>
@@ -112,6 +114,29 @@
 
       <section class="view paper" id="view-trophies">
         <div id="trophies"></div>
+      </section>
+
+      <section class="view paper agent-view" id="view-agent">
+        <div class="view-head">
+          <button class="back-btn" id="agentBack" type="button">‹ Wróć</button>
+          <h2>🦉 Sowa Mądralińska</h2>
+        </div>
+        <div class="segmented" id="agentTabs">
+          <button class="on" type="button" data-agent-tab="chat">💬 Zapytaj</button>
+          <button type="button" data-agent-tab="wiki">📖 Encyklopedia</button>
+        </div>
+        <div id="agentChatPane">
+          <div class="chat" id="agentChat"></div>
+          <div class="agent-chips" id="agentChips"></div>
+          <form class="agent-form" id="agentForm" autocomplete="off">
+            <input class="text-input" id="agentInput" maxlength="140" placeholder="Zapytaj, np. skąd wziąć gwoździe?" enterkeyhint="send" />
+            <button class="btn" type="submit" aria-label="Wyślij">➤</button>
+          </form>
+        </div>
+        <div class="hidden" id="agentWikiPane">
+          <input class="text-input" id="wikiSearch" type="search" placeholder="🔎 Szukaj w encyklopedii…" />
+          <div id="wikiList"></div>
+        </div>
       </section>
 
       <section class="view paper spooky-paper" id="view-event">

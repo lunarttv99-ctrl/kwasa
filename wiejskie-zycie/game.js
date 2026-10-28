@@ -1,5 +1,6 @@
 import { createFarm3D } from './farm3d.js';
 import { createMusic } from './music.js';
+import * as Agent from './agent.js';
 import {
   ITEMS, CROPS, ANIMALS, RECIPES, HALLOWEEN, UPGRADES, HELPERS, PROJECTS, TRIPS, FISH_TABLE, BOOSTERS,
   MERCHANT_POOL, QUESTS, ACHIEVEMENTS, ACHIEVEMENT_REWARDS, NPCS, REQUESTS, TIPS, HALLOWEEN_TIPS,
@@ -2696,6 +2697,7 @@ function renderMore() {
       ${tile('merchant', '🧳', 'Kupiec', 'Rzadkie towary', b.merchant, state.level < MERCHANT_LEVEL ? `🔒 Poziom ${MERCHANT_LEVEL}` : '')}
       ${tile('trophies', '🏆', 'Trofea', 'Kronika i osiągnięcia', b.trophies)}
       ${halloweenActive() ? tile('event', '🎃', 'Halloween', 'Wydarzenie', b.event) : ''}
+      <button class="hub-tile agent-tile" type="button" data-act="agent"><span class="hub-icon">🦉</span><b>Sowa Mądralińska</b><small>Pytania i encyklopedia</small></button>
       <button class="hub-tile" type="button" data-act="backpack"><span class="hub-icon">🎒</span><b>Plecak</b><small>Wzmacniacze</small></button>
       <button class="hub-tile" type="button" data-act="settings"><span class="hub-icon">⚙️</span><b>Ustawienia</b><small>Dźwięk, grafika, kopia</small></button>
       <button class="hub-tile" type="button" data-act="help"><span class="hub-icon">❓</span><b>Pomoc</b><small>Jak grać</small></button>
@@ -2880,7 +2882,7 @@ function fitField() {
   document.documentElement.style.setProperty('--tile', `${Math.max(22, Math.min(76, size))}px`);
 }
 
-const SUB_VIEWS = ['workshop', 'village', 'merchant', 'trophies', 'event'];
+const SUB_VIEWS = ['workshop', 'village', 'merchant', 'trophies', 'event', 'agent'];
 
 function showView(view) {
   activeView = view;
@@ -2892,6 +2894,158 @@ function showView(view) {
   if (farm3d) farm3d.setActive(view === 'farm' && !document.hidden);
   if (view === 'farm') fitField();
   renderAll();
+}
+
+/* ---------- Sowa Mądralińska (assistant) ---------- */
+
+const agentCtx = {
+  state: () => state,
+  inv,
+  seasonIndex,
+  cropInfo,
+  sellPrice,
+  cropReady,
+  treeReady,
+  frostTonight,
+  isWinter,
+  questProgress,
+  currentQuest: () => currentQuest() || { title: '' },
+  claimableAchievements,
+  hasItems,
+  recipeTime,
+  readyProcessSlots,
+  upg,
+  canAfford
+};
+
+const agentMessages = [];
+let agentTab = 'chat';
+let agentReturn = 'farm';
+let agentTyping = false;
+let lastBubble = '';
+let bubbleTimer = 0;
+
+function openAgent() {
+  if (activeView !== 'agent') agentReturn = activeView;
+  if (!agentMessages.length) {
+    agentMessages.push({ from: 'owl', html: `<p>Huhu! Jestem <b>Sowa Mądralińska</b> 🦉 i znam tę wieś jak własne pióra. Pytaj o wszystko — skąd co wziąć, jak co zrobić, co się opłaca.</p>` });
+    const adv = Agent.answer('co mam teraz robić', agentCtx);
+    agentMessages.push({ from: 'owl', ...adv });
+  }
+  $('owlBubble').classList.add('hidden');
+  showView('agent');
+  renderAgent(true);
+}
+
+function agentAsk(text) {
+  const question = text.trim();
+  if (!question || agentTyping) return;
+  agentMessages.push({ from: 'me', text: question });
+  agentTyping = true;
+  renderAgent(true);
+  setTimeout(() => {
+    agentTyping = false;
+    agentMessages.push({ from: 'owl', ...Agent.answer(question, agentCtx) });
+    if (agentMessages.length > 40) agentMessages.splice(0, agentMessages.length - 40);
+    sfx('plant');
+    renderAgent(true);
+  }, 450 + Math.random() * 350);
+}
+
+function agentActions(actions = []) {
+  return actions.length
+    ? `<div class="agent-actions">${actions.map(a => `<button class="btn small ghost" type="button" ${a.view ? `data-agent-view="${a.view}"` : a.ask ? `data-agent-ask="${escapeHtml(a.ask)}"` : `data-agent-do="${a.act}"`}>${a.label}</button>`).join('')}</div>`
+    : '';
+}
+
+function renderAgent(scroll = false) {
+  document.querySelectorAll('[data-agent-tab]').forEach(b => b.classList.toggle('on', b.dataset.agentTab === agentTab));
+  $('agentChatPane').classList.toggle('hidden', agentTab !== 'chat');
+  $('agentWikiPane').classList.toggle('hidden', agentTab !== 'wiki');
+  if (agentTab === 'wiki') {
+    renderWiki();
+    return;
+  }
+  const html = agentMessages.map(m => m.from === 'me'
+    ? `<div class="msg me">${escapeHtml(m.text)}</div>`
+    : `<div class="msg owl"><span class="owl-face">🦉</span><div class="bubble-body">${m.html}${agentActions(m.actions)}</div></div>`).join('') +
+    (agentTyping ? '<div class="msg owl"><span class="owl-face">🦉</span><div class="bubble-body typing"><i></i><i></i><i></i></div></div>' : '');
+  patch($('agentChat'), html);
+  patch($('agentChips'), Agent.SUGGESTIONS.map(q => `<button class="chip ask" type="button" data-agent-ask="${q}">${q}</button>`).join(''));
+  if (scroll) requestAnimationFrame(() => { $('view-agent').scrollTop = $('view-agent').scrollHeight; });
+}
+
+const wikiEntries = Agent.wikiEntries();
+
+function renderWiki() {
+  const query = Agent.normalize($('wikiSearch').value || '');
+  const shown = wikiEntries.filter(e => !query || Agent.normalize(`${e.title} ${e.cat}`).includes(query));
+  const groups = {};
+  shown.forEach(e => { (groups[e.cat] = groups[e.cat] || []).push(e); });
+  const html = Object.entries(groups).map(([cat, items]) => `<h3 class="section-title">${cat}</h3><div class="card wiki-card">${items.map(e =>
+    `<details class="wiki-entry" data-wiki="${e.kind}:${e.id}"><summary><span class="wiki-icon">${e.icon}</span>${e.title}</summary><div class="wiki-body"></div></details>`).join('')}</div>`).join('');
+  patch($('wikiList'), html || '<p class="empty">Nic nie znaleziono. Spróbuj inaczej albo zapytaj Sowę w czacie.</p>');
+}
+
+function updateOwl(dt) {
+  const tip = Agent.bubbleTip(agentCtx);
+  $('owlBadge').textContent = tip ? '!' : '';
+  bubbleTimer -= dt;
+  const bubble = $('owlBubble');
+  if (bubbleTimer <= 0 && !bubble.classList.contains('hidden')) bubble.classList.add('hidden');
+  if (!tip || activeView !== 'farm' || modalOpen) return;
+  const text = `${tip.icon} ${tip.text}`;
+  if (text !== lastBubble) {
+    lastBubble = text;
+    bubble.textContent = text;
+    bubble.classList.remove('hidden');
+    bubbleTimer = 7000;
+  }
+}
+
+function bindAgent() {
+  $('owlBtn').addEventListener('click', () => { unlockAudio(); openAgent(); });
+  $('owlBubble').addEventListener('click', () => { unlockAudio(); openAgent(); });
+  $('agentBack').addEventListener('click', () => showView(agentReturn === 'agent' ? 'farm' : agentReturn));
+  $('agentTabs').addEventListener('click', e => {
+    const b = e.target.closest('[data-agent-tab]');
+    if (!b) return;
+    agentTab = b.dataset.agentTab;
+    renderAgent(agentTab === 'chat');
+  });
+  $('agentForm').addEventListener('submit', e => {
+    e.preventDefault();
+    unlockAudio();
+    agentAsk($('agentInput').value);
+    $('agentInput').value = '';
+  });
+  $('wikiSearch').addEventListener('input', renderWiki);
+  $('wikiList').addEventListener('toggle', e => {
+    const d = e.target;
+    if (!d.open || d.dataset.filled) return;
+    const [kind, ...rest] = d.dataset.wiki.split(':');
+    const entry = wikiEntries.find(w => w.kind === kind && w.id === rest.join(':'));
+    const res = Agent.wikiBody(entry, agentCtx);
+    d.querySelector('.wiki-body').innerHTML = res.html + agentActions(res.actions);
+    d.dataset.filled = '1';
+  }, true);
+  $('view-agent').addEventListener('click', e => {
+    const view = e.target.closest('[data-agent-view]');
+    const ask = e.target.closest('[data-agent-ask]');
+    const act = e.target.closest('[data-agent-do]');
+    if (view) {
+      showView(view.dataset.agentView);
+    } else if (ask) {
+      agentTab = 'chat';
+      agentAsk(ask.dataset.agentAsk);
+    } else if (act) {
+      if (act.dataset.agentDo === 'backpack') showBackpack();
+      if (act.dataset.agentDo === 'fish') {
+        showView('farm');
+        openFishing();
+      }
+    }
+  });
 }
 
 /* ---------- Menus ---------- */
@@ -3367,6 +3521,7 @@ function bindInput() {
     buyOffer: arg => buyOffer(Number(arg)),
     quest: () => claimQuest(),
     ach: arg => claimAchievement(arg),
+    agent: () => openAgent(),
     ktab: arg => { kitchenTab = arg; },
     buildProc: arg => buildProcessor(arg),
     proc: arg => { const [pid, rid] = arg.split(':'); startProcess(pid, rid); },
@@ -3467,6 +3622,7 @@ function tick() {
     toast(questProgress().done ? '📜 Zadanie wykonane! Odbierz nagrodę.' : '🏅 Nowe osiągnięcie do odebrania w Trofeach!');
   }
   lastClaimables = claimables;
+  updateOwl(dt);
   renderAll();
 }
 
@@ -3525,6 +3681,7 @@ function initGraphics() {
 function init() {
   initGraphics();
   bindInput();
+  bindAgent();
   ensureEventSeason();
   ensureDeals();
   delete state.daily.pending;
