@@ -1,4 +1,4 @@
-'use strict';
+import { createFarm3D } from './farm3d.js';
 
 const SAVE_KEY = 'wiejskie_zycie_save_v1';
 const COLS = 6;
@@ -10,29 +10,34 @@ const HARVEST_YIELD = 2;
 const KITCHEN_LEVEL = 3;
 const MAX_KITCHEN_SLOTS = 3;
 const KITCHEN_SLOT_PRICE = 400;
+const DAILY_REWARDS = [20, 30, 45, 60, 80, 100, 150];
 
 const ITEMS = {
-  wheat:      { name: 'Pszenica', icon: '🌾', price: 3 },
-  carrot:     { name: 'Marchew', icon: '🥕', price: 7 },
-  potato:     { name: 'Ziemniaki', icon: '🥔', price: 12 },
-  corn:       { name: 'Kukurydza', icon: '🌽', price: 18 },
-  tomato:     { name: 'Pomidory', icon: '🍅', price: 26 },
-  sunflower:  { name: 'Słonecznik', icon: '🌻', price: 32 },
-  strawberry: { name: 'Truskawki', icon: '🍓', price: 45 },
-  pumpkin:    { name: 'Dynia', icon: '🎃', price: 70 },
-  egg:        { name: 'Jajka', icon: '🥚', price: 14 },
-  milk:       { name: 'Mleko', icon: '🥛', price: 40 },
-  honey:      { name: 'Miód', icon: '🍯', price: 60 },
-  wool:       { name: 'Wełna', icon: '🧶', price: 55 },
-  bread:      { name: 'Chleb wiejski', icon: '🍞', price: 16 },
-  popcorn:    { name: 'Popcorn', icon: '🍿', price: 50 },
-  pancakes:   { name: 'Placki ziemniaczane', icon: '🥞', price: 75 },
-  soup:       { name: 'Pomidorówka', icon: '🍲', price: 120 },
-  cheese:     { name: 'Ser', icon: '🧀', price: 120 },
-  honeycake:  { name: 'Miodownik', icon: '🍰', price: 115 },
-  jam:        { name: 'Dżem truskawkowy', icon: '🫙', price: 190 },
-  sweater:    { name: 'Sweter', icon: '🧥', price: 165 },
-  pie:        { name: 'Placek dyniowy', icon: '🥧', price: 160 }
+  wheat:       { name: 'Pszenica', icon: '🌾', price: 3 },
+  carrot:      { name: 'Marchew', icon: '🥕', price: 7 },
+  potato:      { name: 'Ziemniaki', icon: '🥔', price: 12 },
+  corn:        { name: 'Kukurydza', icon: '🌽', price: 18 },
+  tomato:      { name: 'Pomidory', icon: '🍅', price: 26 },
+  sunflower:   { name: 'Słonecznik', icon: '🌻', price: 32 },
+  strawberry:  { name: 'Truskawki', icon: '🍓', price: 45 },
+  pumpkin:     { name: 'Dynia', icon: '🎃', price: 70 },
+  egg:         { name: 'Jajka', icon: '🥚', price: 14 },
+  milk:        { name: 'Mleko', icon: '🥛', price: 40 },
+  honey:       { name: 'Miód', icon: '🍯', price: 60 },
+  wool:        { name: 'Wełna', icon: '🧶', price: 55 },
+  bread:       { name: 'Chleb wiejski', icon: '🍞', price: 16 },
+  popcorn:     { name: 'Popcorn', icon: '🍿', price: 50 },
+  pancakes:    { name: 'Placki ziemniaczane', icon: '🥞', price: 75 },
+  soup:        { name: 'Pomidorówka', icon: '🍲', price: 120 },
+  cheese:      { name: 'Ser', icon: '🧀', price: 120 },
+  honeycake:   { name: 'Miodownik', icon: '🍰', price: 115 },
+  jam:         { name: 'Dżem truskawkowy', icon: '🫙', price: 190 },
+  sweater:     { name: 'Sweter', icon: '🧥', price: 165 },
+  pie:         { name: 'Placek dyniowy', icon: '🥧', price: 160 },
+  candy:       { name: 'Cukierki', icon: '🍬', price: 30 },
+  pumpkinsoup: { name: 'Zupa dyniowa', icon: '🥣', price: 110 },
+  ghostcookie: { name: 'Ciastka-duszki', icon: '🍪', price: 150 },
+  potion:      { name: 'Eliksir czarownicy', icon: '🧪', price: 230 }
 };
 
 const CROPS = {
@@ -65,6 +70,33 @@ const RECIPES = {
   pie:       { level: 8, time: 240, input: { pumpkin: 1, egg: 2, wheat: 2 }, xp: 12 }
 };
 
+const HALLOWEEN = {
+  pumpkin: { level: 1, cost: 30, time: 240, xp: 6 },
+  harvestPoints: 2,
+  recipes: {
+    candy:       { time: 45,  input: { pumpkin: 1, wheat: 2 }, out: 3, points: 3 },
+    pumpkinsoup: { time: 90,  input: { pumpkin: 1, carrot: 2 }, out: 1, points: 5 },
+    ghostcookie: { time: 120, input: { candy: 2, wheat: 2, egg: 1 }, out: 1, points: 8 },
+    potion:      { time: 180, input: { pumpkin: 1, honey: 1, candy: 1 }, out: 1, points: 12 }
+  },
+  npcs: [
+    ['🧛', 'Wampirek Staś'],
+    ['🧙‍♀️', 'Czarownica Wiesia'],
+    ['👻', 'Duszek Kacperek'],
+    ['🧟', 'Zombie Zenek'],
+    ['💀', 'Kościotrup Kazio']
+  ],
+  requests: ['Cukierek albo psikus!', 'Na bal przebierańców:', 'Do mojego kociołka:', 'Buuu! Poproszę:'],
+  milestones: [
+    { points: 20, coins: 150, label: '🪙 150 monet' },
+    { points: 50, decor: 'lanterns', label: '🎃 Lampiony na płocie', perk: 'Nocą rośliny rosną o 25% szybciej.' },
+    { points: 100, decor: 'scarecrow', label: '🧙 Strach na wróble czarownicy', perk: '15% szans na podwójny plon.' },
+    { points: 170, coins: 600, label: '🪙 600 monet' },
+    { points: 260, decor: 'ghost', label: '👻 Przyjazny duszek', perk: 'Zwierzęta produkują o 20% szybciej.' },
+    { points: 380, decor: 'goldpumpkin', coins: 1000, label: '🌟 Złota dynia + 🪙 1000', perk: 'Stodoła płaci o 10% więcej.' }
+  ]
+};
+
 const NPCS = [
   ['👵', 'Babcia Jadzia'],
   ['👴', 'Dziadek Stefan'],
@@ -94,7 +126,13 @@ const TIPS = [
   'Dotknij drzewa z ceną, aby powiększyć gospodarstwo.',
   'Gospodarstwo rośnie także, gdy gra jest zamknięta.',
   'Chwasty pojawiają się rano na pustych grządkach — wyrwij je!',
-  'Zwierzęta trzeba karmić plonami z pola.'
+  '⟳ Obróć kamerę, aby zobaczyć gospodarstwo z innej strony.'
+];
+
+const HALLOWEEN_TIPS = [
+  '🎃 Halloween! Dynie rosną już od 1. poziomu — zbieraj je dla punktów 👻.',
+  '🧪 W kociołku czarownicy zrobisz cukierki i eliksiry.',
+  '🧛 Potwory z wioski płacą punktami 👻 za słodycze.'
 ];
 
 const DECO = ['🌳', '🌲', '🪨', '🌳', '🌲', '🍄', '🌳', '🌿'];
@@ -118,6 +156,40 @@ function itemLabel(id) {
   return `${ITEMS[id].icon} ${ITEMS[id].name}`;
 }
 
+function localDay(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/* ---------- Halloween ---------- */
+
+const params = new URLSearchParams(location.search);
+const FORCE_EVENT = params.has('halloween') ? params.get('halloween') !== '0' : null;
+
+function halloweenActive(date = new Date()) {
+  if (FORCE_EVENT !== null) return FORCE_EVENT;
+  const m = date.getMonth();
+  const d = date.getDate();
+  return (m === 9 && d >= 15) || (m === 10 && d <= 7);
+}
+
+function eventDaysLeft() {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), 10, 8);
+  return Math.max(1, Math.ceil((end - now) / 86400000));
+}
+
+function hasDecor(id) {
+  return state.decor.includes(id);
+}
+
+function ensureEventSeason() {
+  if (!halloweenActive()) return;
+  const year = new Date().getFullYear();
+  if (state.event.year !== year) {
+    state.event = { year, points: 0, claimed: [], cauldron: state.event.cauldron || [null, null] };
+  }
+}
+
 /* ---------- State ---------- */
 
 function newGame() {
@@ -126,11 +198,11 @@ function newGame() {
     const r = Math.floor(i / COLS);
     const c = i % COLS;
     if (r < 2 || r > 4 || c < 1 || c > 4) tiles.push({ s: 'locked', deco: DECO[(i * 7 + 3) % DECO.length] });
-    else if (r === 2) tiles.push({ s: 'crop', crop: 'wheat', p: CROPS.wheat.time * 1000, w: true });
+    else if (r === 2) tiles.push({ s: 'crop', crop: 'wheat', p: CROPS.wheat.time * 1000, T: CROPS.wheat.time * 1000, w: true });
     else if (r === 3) tiles.push({ s: 'soil' });
     else tiles.push({ s: 'grass' });
   }
-  const game = {
+  return migrate({
     v: 1,
     coins: 40,
     xp: 0,
@@ -140,7 +212,11 @@ function newGame() {
     inv: {},
     animals: [],
     kitchen: [null, null],
-    orders: [],
+    orders: [
+      { npc: 0, text: REQUESTS[0], items: { wheat: 4 }, coins: 25, xp: 4 },
+      { npc: 3, text: REQUESTS[1], items: { wheat: 2, carrot: 2 }, coins: 30, xp: 5 },
+      { wait: 20000, total: 20000 }
+    ],
     day: 1,
     dayTime: DAY_LENGTH * 0.08,
     weather: 'sunny',
@@ -149,13 +225,19 @@ function newGame() {
     seenIntro: false,
     stats: { harvested: 0, orders: 0, earned: 0 },
     lastSave: Date.now()
-  };
-  game.orders = [
-    { npc: 0, text: REQUESTS[0], items: { wheat: 4 }, coins: 25, xp: 4 },
-    { npc: 3, text: REQUESTS[1], items: { wheat: 2, carrot: 2 }, coins: 30, xp: 5 },
-    { wait: 20000, total: 20000 }
-  ];
-  return game;
+  });
+}
+
+function migrate(data) {
+  data.event = data.event || { year: 0, points: 0, claimed: [], cauldron: [null, null] };
+  data.event.cauldron = data.event.cauldron || [null, null];
+  data.decor = data.decor || [];
+  data.daily = data.daily || { last: '', streak: 0 };
+  data.gfx = data.gfx || '3d';
+  data.tiles.forEach(t => {
+    if (t.s === 'crop' && !t.T) t.T = CROPS[t.crop].time * 1000;
+  });
+  return data;
 }
 
 function load() {
@@ -164,7 +246,7 @@ function load() {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data || data.v !== 1 || !Array.isArray(data.tiles) || data.tiles.length !== COLS * ROWS) return null;
-    return data;
+    return migrate(data);
   } catch {
     return null;
   }
@@ -217,6 +299,7 @@ const SOUNDS = {
   coin: () => { tone(988, 0.06, 'square', 0.05); tone(1319, 0.14, 'square', 0.05, 0.06); },
   error: () => tone(170, 0.16, 'sawtooth', 0.06),
   cluck: () => { tone(420, 0.05, 'square', 0.05); tone(380, 0.06, 'square', 0.05, 0.07); },
+  spooky: () => [392, 370, 349, 330].forEach((f, k) => tone(f, 0.25, 'triangle', 0.08, k * 0.12)),
   level: () => [523, 659, 784, 1047].forEach((f, k) => tone(f, 0.2, 'triangle', 0.13, k * 0.11))
 };
 
@@ -255,6 +338,28 @@ function floatAt(el, text, cls, offset = 0) {
   if (!el) return;
   const r = el.getBoundingClientRect();
   floatText(r.left + r.width / 2, r.top + r.height / 2 - offset, text, cls);
+}
+
+function tilePoint(i) {
+  if (farm3d) return farm3d.screenPos(i);
+  const r = tileEls[i].getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function floatAtTile(i, text, cls, offset = 0) {
+  const p = tilePoint(i);
+  floatText(p.x, p.y - offset, text, cls);
+}
+
+function pulseTile(i) {
+  if (farm3d) {
+    farm3d.pulse(i);
+    return;
+  }
+  const el = tileEls[i];
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
 }
 
 function bumpCoins() {
@@ -334,6 +439,15 @@ function addXp(n) {
   }
 }
 
+function addPoints(n) {
+  const before = claimableMilestones();
+  state.event.points += n;
+  if (claimableMilestones() > before) {
+    sfx('spooky');
+    toast('🎃 Nowa nagroda Halloween czeka do odebrania!');
+  }
+}
+
 function unlocksAt(level) {
   const list = [];
   Object.entries(CROPS).forEach(([id, c]) => { if (c.level === level) list.push(`${ITEMS[id].icon} Nasiona: ${ITEMS[id].name}`); });
@@ -374,9 +488,8 @@ function canBuyTile(i) {
 
 function askBuyTile(i) {
   const price = landPrice();
-  const deco = state.tiles[i].deco;
   showModal({
-    hero: deco,
+    hero: state.tiles[i].deco,
     title: 'Powiększyć pole?',
     body: `<p>Wykarczowanie tego kawałka ziemi kosztuje <b>🪙 ${price}</b>.</p>`,
     buttons: [
@@ -395,9 +508,8 @@ function askBuyTile(i) {
           addXp(2);
           sfx('plow');
           renderAll();
-          const el = tileEls[i];
-          el.classList.add('pop');
-          floatAt(el, `-${price} 🪙`, 'minus');
+          pulseTile(i);
+          floatAtTile(i, `-${price} 🪙`, 'minus');
           save();
         }
       },
@@ -408,12 +520,26 @@ function askBuyTile(i) {
 
 /* ---------- Field ---------- */
 
+function cropInfo(id) {
+  if (id === 'pumpkin' && halloweenActive()) return { ...CROPS.pumpkin, ...HALLOWEEN.pumpkin };
+  return CROPS[id];
+}
+
+function cropTotal(t) {
+  return t.T || CROPS[t.crop].time * 1000;
+}
+
 function cropReady(t) {
-  return t.s === 'crop' && t.p >= CROPS[t.crop].time * 1000;
+  return t.s === 'crop' && t.p >= cropTotal(t);
 }
 
 function isRaining() {
   return state.weather === 'rain';
+}
+
+function isNight() {
+  const h = hourOfDay();
+  return h >= 21 || h < 5;
 }
 
 function tileAction(i) {
@@ -429,14 +555,13 @@ function tileAction(i) {
 
 function doAction(i, action) {
   const t = state.tiles[i];
-  const el = tileEls[i];
   switch (action) {
     case 'plow':
       state.tiles[i] = { s: 'soil' };
       sfx('plow');
       break;
     case 'plant': {
-      const crop = CROPS[state.seed];
+      const crop = cropInfo(state.seed);
       if (state.level < crop.level) {
         toast(`Te nasiona odblokujesz na poziomie ${crop.level}.`);
         return false;
@@ -447,22 +572,28 @@ function doAction(i, action) {
         return false;
       }
       addCoins(-crop.cost);
-      state.tiles[i] = { s: 'crop', crop: state.seed, p: 0, w: isRaining() };
-      floatAt(el, `-${crop.cost} 🪙`, 'minus');
+      state.tiles[i] = { s: 'crop', crop: state.seed, p: 0, T: crop.time * 1000, w: isRaining() };
+      floatAtTile(i, `-${crop.cost} 🪙`, 'minus');
       sfx('plant');
       break;
     }
     case 'water':
       t.w = true;
-      floatAt(el, '💧');
+      floatAtTile(i, '💧');
       sfx('water');
       break;
     case 'harvest': {
-      const crop = CROPS[t.crop];
-      addItem(t.crop, HARVEST_YIELD);
-      state.stats.harvested += HARVEST_YIELD;
-      floatAt(el, `+${HARVEST_YIELD} ${ITEMS[t.crop].icon}`, '', 8);
-      floatAt(el, `+${crop.xp} ⭐`, 'xp', -12);
+      const crop = cropInfo(t.crop);
+      const lucky = hasDecor('scarecrow') && Math.random() < 0.15;
+      const amount = HARVEST_YIELD * (lucky ? 2 : 1);
+      addItem(t.crop, amount);
+      state.stats.harvested += amount;
+      floatAtTile(i, `+${amount} ${ITEMS[t.crop].icon}${lucky ? ' ✨' : ''}`, '', 8);
+      floatAtTile(i, `+${crop.xp} ⭐`, 'xp', -12);
+      if (t.crop === 'pumpkin' && halloweenActive()) {
+        addPoints(HALLOWEEN.harvestPoints);
+        floatAtTile(i, `+${HALLOWEEN.harvestPoints} 👻`, 'spooky', 34);
+      }
       state.tiles[i] = { s: 'soil' };
       addXp(crop.xp);
       sfx('harvest');
@@ -473,24 +604,22 @@ function doAction(i, action) {
       t.weed = false;
       addCoins(2);
       addXp(1);
-      floatAt(el, '+2 🪙');
+      floatAtTile(i, '+2 🪙');
       sfx('plow');
       break;
     default:
       return false;
   }
-  el.classList.remove('pop');
-  void el.offsetWidth;
-  el.classList.add('pop');
-  renderTile(i);
+  pulseTile(i);
+  if (!farm3d) renderTile(i);
   renderHud();
   return true;
 }
 
 function showCropInfo(i) {
   const t = state.tiles[i];
-  const left = (CROPS[t.crop].time * 1000 - t.p) / 1000 / (t.w ? 1 : DRY_SPEED);
-  toast(`${itemLabel(t.crop)} — gotowe za ${fmtTime(left)}`);
+  const left = (cropTotal(t) - t.p) / 1000 / (t.w ? 1 : DRY_SPEED);
+  toast(`${itemLabel(t.crop)} — gotowe za ok. ${fmtTime(left)}`);
 }
 
 /* ---------- Animals ---------- */
@@ -547,11 +676,15 @@ function tapAnimal(idx, el, quiet = false) {
     sfx('cluck');
     return true;
   }
-  if (!quiet) toast(`${a.name}: ${ITEMS[a.product].name} za ${fmtTime(a.time - animal.p / 1000)}`);
+  if (!quiet) toast(`${a.name}: ${ITEMS[a.product].name} za ${fmtTime((a.time * 1000 - animal.p) / 1000 / animalSpeed())}`);
   return false;
 }
 
-/* ---------- Kitchen ---------- */
+function animalSpeed() {
+  return hasDecor('ghost') ? 1.2 : 1;
+}
+
+/* ---------- Kitchen & cauldron ---------- */
 
 function cook(id) {
   const r = RECIPES[id];
@@ -603,37 +736,124 @@ function buyKitchenSlot() {
   save();
 }
 
+function brew(id) {
+  const r = HALLOWEEN.recipes[id];
+  const slot = state.event.cauldron.findIndex(s => s === null);
+  if (!halloweenActive()) return;
+  if (slot < 0) {
+    toast('Kociołek jest pełny — poczekaj, aż coś się uwarzy.');
+    return;
+  }
+  if (!hasItems(r.input)) {
+    sfx('error');
+    toast('Brakuje składników.');
+    return;
+  }
+  takeItems(r.input);
+  state.event.cauldron[slot] = { r: id, p: 0 };
+  sfx('spooky');
+  toast(`Bulgocze w kociołku: ${itemLabel(id)}`);
+  save();
+}
+
+function tapCauldron(idx, el) {
+  const slot = state.event.cauldron[idx];
+  if (!slot) return;
+  const r = HALLOWEEN.recipes[slot.r];
+  if (slot.p >= r.time * 1000) {
+    addItem(slot.r, r.out);
+    addXp(r.points);
+    addPoints(r.points);
+    state.event.cauldron[idx] = null;
+    floatAt(el, `+${r.out} ${ITEMS[slot.r].icon}`, '', 8);
+    floatAt(el, `+${r.points} 👻`, 'spooky', -12);
+    sfx('harvest');
+    save();
+  } else {
+    toast(`${itemLabel(slot.r)} — gotowe za ${fmtTime(r.time - slot.p / 1000)}`);
+  }
+}
+
+function claimableMilestones() {
+  return HALLOWEEN.milestones.filter((m, k) => state.event.points >= m.points && !state.event.claimed.includes(k)).length;
+}
+
+function claimMilestone(k) {
+  const m = HALLOWEEN.milestones[k];
+  if (!m || state.event.claimed.includes(k) || state.event.points < m.points) return;
+  state.event.claimed.push(k);
+  if (m.coins) addCoins(m.coins);
+  if (m.decor && !hasDecor(m.decor)) state.decor.push(m.decor);
+  sfx('level');
+  buzz(30);
+  showModal({
+    hero: m.decor ? m.label.split(' ')[0] : '🎁',
+    title: 'Nagroda Halloween!',
+    body: `<p><b>${m.label}</b></p>${m.perk ? `<p>${m.perk} Ta ozdoba zostaje na zawsze — zobaczysz ją na polu!</p>` : ''}`,
+    buttons: [{ label: 'Buuu-tiful!', cls: 'gold' }]
+  });
+  save();
+}
+
 /* ---------- Orders ---------- */
 
 function canProduce(id) {
-  if (CROPS[id]) return state.level >= CROPS[id].level;
+  if (CROPS[id]) return state.level >= cropInfo(id).level;
   const animal = Object.values(ANIMALS).find(a => a.product === id);
   if (animal) return state.animals.some(a => ANIMALS[a.type].product === id);
   const r = RECIPES[id];
   if (r) return state.level >= r.level && Object.keys(r.input).every(canProduce);
+  const er = HALLOWEEN.recipes[id];
+  if (er) return halloweenActive() && Object.keys(er.input).every(canProduce);
   return false;
 }
 
-function makeOrder() {
-  const pool = Object.keys(ITEMS).filter(canProduce);
-  const count = 1 + rand(Math.min(3, pool.length));
+function pickItems(pool, maxKinds, budget) {
+  const count = 1 + rand(Math.min(maxKinds, pool.length));
   const items = {};
   let value = 0;
   for (let k = 0; k < count; k++) {
     const id = pick(pool);
     if (items[id]) continue;
     const price = ITEMS[id].price;
-    const qty = Math.max(1, Math.min(8, Math.round(((18 + state.level * 8) / price) * (0.6 + Math.random() * 0.8))));
+    const qty = Math.max(1, Math.min(8, Math.round((budget / price) * (0.6 + Math.random() * 0.8))));
     items[id] = qty;
     value += qty * price;
   }
+  return { items, value };
+}
+
+function makeOrder() {
+  if (halloweenActive() && Math.random() < 0.4) {
+    const pool = ['pumpkin', ...Object.keys(HALLOWEEN.recipes)].filter(canProduce);
+    const { items, value } = pickItems(pool, 2, 60 + state.level * 10);
+    const [face, name] = pick(HALLOWEEN.npcs);
+    return {
+      face,
+      name,
+      text: pick(HALLOWEEN.requests),
+      items,
+      coins: Math.round(value * 1.3 + 5),
+      xp: Math.max(2, Math.round(value / 8)),
+      pts: Math.max(3, Math.round(value / 10)),
+      ev: true
+    };
+  }
+  const pool = Object.keys(ITEMS).filter(id => !HALLOWEEN.recipes[id] && canProduce(id));
+  const { items, value } = pickItems(pool, 3, 18 + state.level * 8);
+  const [face, name] = pick(NPCS);
   return {
-    npc: rand(NPCS.length),
+    face,
+    name,
     text: pick(REQUESTS),
     items,
     coins: Math.round(value * 1.4 + 5),
     xp: Math.max(2, Math.round(value / 6))
   };
+}
+
+function npcOf(order) {
+  return order.face ? [order.face, order.name] : NPCS[order.npc] || NPCS[0];
 }
 
 function deliverOrder(idx, el) {
@@ -642,23 +862,26 @@ function deliverOrder(idx, el) {
   takeItems(order.items);
   addCoins(order.coins);
   addXp(order.xp);
+  if (order.pts) addPoints(order.pts);
   state.stats.orders++;
   state.orders[idx] = { wait: 15000, total: 15000 };
   floatAt(el, `+${order.coins} 🪙`, '', 10);
   floatAt(el, `+${order.xp} ⭐`, 'xp', -14);
-  sfx('coin');
+  if (order.pts) floatAt(el, `+${order.pts} 👻`, 'spooky', 36);
+  sfx(order.ev ? 'spooky' : 'coin');
   buzz(15);
-  toast(`${NPCS[order.npc][1]} dziękuje! 😊`);
+  toast(`${npcOf(order)[1]} dziękuje! ${order.ev ? '🎃' : '😊'}`);
   save();
 }
 
 function skipOrder(idx) {
   const order = state.orders[idx];
   if (!order || order.wait !== undefined) return;
+  const [face, name] = npcOf(order);
   showModal({
-    hero: NPCS[order.npc][0],
+    hero: face,
     title: 'Odrzucić zamówienie?',
-    body: `<p>${NPCS[order.npc][1]} pójdzie gdzie indziej. Nowy klient przyjdzie za chwilę.</p>`,
+    body: `<p>${name} pójdzie gdzie indziej. Nowy klient przyjdzie za chwilę.</p>`,
     buttons: [
       {
         label: 'Odrzuć',
@@ -676,10 +899,14 @@ function skipOrder(idx) {
 
 /* ---------- Barn ---------- */
 
+function sellPrice(id) {
+  return Math.round(ITEMS[id].price * (hasDecor('goldpumpkin') ? 1.1 : 1));
+}
+
 function sellItem(id, n, el) {
   const qty = Math.min(n, inv(id));
   if (qty <= 0) return;
-  const gain = qty * ITEMS[id].price;
+  const gain = qty * sellPrice(id);
   addItem(id, -qty);
   addCoins(gain);
   floatAt(el, `+${gain} 🪙`);
@@ -687,34 +914,69 @@ function sellItem(id, n, el) {
   save();
 }
 
+/* ---------- Daily reward ---------- */
+
+function checkDaily() {
+  const today = localDay();
+  if (state.daily.last === today || state.daily.pending === today) return;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const streak = state.daily.last === localDay(yesterday) ? state.daily.streak + 1 : 1;
+  const idx = (streak - 1) % DAILY_REWARDS.length;
+  const coins = DAILY_REWARDS[idx];
+  const candy = halloweenActive() ? 2 + idx : 0;
+  state.daily.pending = today;
+  const days = DAILY_REWARDS.map((c, k) =>
+    `<span class="day-cell${k < idx ? ' done' : ''}${k === idx ? ' today' : ''}"><small>Dzień ${k + 1}</small>${k === DAILY_REWARDS.length - 1 ? '🎁' : '🪙'}<b>${c}</b></span>`).join('');
+  showModal({
+    hero: '🎁',
+    title: 'Codzienna nagroda',
+    body: `<p>Wracaj codziennie — im dłuższa seria, tym lepsza nagroda!</p><div class="daily-row">${days}</div>${candy ? `<p>🎃 Bonus Halloween: <b>🍬 ${candy} cukierków</b></p>` : ''}`,
+    buttons: [{
+      label: `Odbierz 🪙 ${coins}${candy ? ` + 🍬 ${candy}` : ''}`,
+      cls: 'gold',
+      onClick: () => {
+        state.daily = { last: today, streak };
+        addCoins(coins);
+        if (candy) addItem('candy', candy);
+        sfx('coin');
+        save();
+        renderAll();
+      }
+    }]
+  });
+}
+
 /* ---------- Simulation ---------- */
 
 function advanceWorld(dt) {
   const events = { crops: 0, animals: 0, kitchen: 0 };
   const raining = isRaining();
+  const nightBoost = hasDecor('lanterns') && isNight() ? 1.25 : 1;
   state.tiles.forEach(t => {
     if (t.s !== 'crop') return;
     if (raining) t.w = true;
-    const total = CROPS[t.crop].time * 1000;
+    const total = cropTotal(t);
     if (t.p >= total) return;
-    t.p = Math.min(total, t.p + dt * (t.w ? 1 : DRY_SPEED));
+    t.p = Math.min(total, t.p + dt * (t.w ? 1 : DRY_SPEED) * nightBoost);
     if (t.p >= total) events.crops++;
   });
+  const aSpeed = animalSpeed();
   state.animals.forEach(animal => {
     if (animal.s !== 'busy') return;
-    animal.p += dt;
+    animal.p += dt * aSpeed;
     if (animal.p >= ANIMALS[animal.type].time * 1000) {
       animal.s = 'ready';
       events.animals++;
     }
   });
-  state.kitchen.forEach(slot => {
-    if (!slot) return;
-    const total = RECIPES[slot.r].time * 1000;
-    if (slot.p >= total) return;
+  const cooking = (slot, total) => {
+    if (!slot || slot.p >= total) return;
     slot.p = Math.min(total, slot.p + dt);
     if (slot.p >= total) events.kitchen++;
-  });
+  };
+  state.kitchen.forEach(slot => slot && cooking(slot, RECIPES[slot.r].time * 1000));
+  state.event.cauldron.forEach(slot => slot && cooking(slot, HALLOWEEN.recipes[slot.r].time * 1000));
   state.orders.forEach((order, idx) => {
     if (order.wait === undefined) return;
     order.wait -= dt;
@@ -751,7 +1013,7 @@ function hourOfDay() {
   return (6 + (state.dayTime / DAY_LENGTH) * 24) % 24;
 }
 
-/* ---------- Rendering: HUD & sky ---------- */
+/* ---------- Rendering: HUD & 2D sky ---------- */
 
 function renderHud() {
   $('coins').textContent = state.coins.toLocaleString('pl-PL');
@@ -761,15 +1023,22 @@ function renderHud() {
   const h = hourOfDay();
   const minutes = Math.floor(((h % 1) * 60) / 10) * 10;
   $('clock').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  const night = h >= 21 || h < 5;
-  $('weatherIcon').textContent = state.weather === 'rain' ? '🌧️' : state.weather === 'cloudy' ? '⛅' : night ? '🌙' : '☀️';
+  $('weatherIcon').textContent = state.weather === 'rain' ? '🌧️' : state.weather === 'cloudy' ? '⛅' : isNight() ? '🌙' : '☀️';
 
   const readyAnimals = state.animals.filter(a => a.s === 'ready').length;
   const readyKitchen = state.kitchen.filter(s => s && s.p >= RECIPES[s.r].time * 1000).length;
   const readyOrders = state.orders.filter(o => o.wait === undefined && hasItems(o.items)).length;
+  const readyCauldron = state.event.cauldron.filter(s => s && s.p >= HALLOWEEN.recipes[s.r].time * 1000).length;
   $('badge-animals').textContent = readyAnimals || '';
   $('badge-kitchen').textContent = readyKitchen || '';
   $('badge-orders').textContent = readyOrders || '';
+  $('badge-event').textContent = claimableMilestones() + readyCauldron || '';
+
+  const event = halloweenActive();
+  document.body.classList.toggle('halloween', event);
+  $('eventTab').classList.toggle('hidden', !event);
+  $('eventPill').classList.toggle('hidden', !event);
+  if (event) $('eventPillPts').textContent = state.event.points;
 }
 
 const SKY = [
@@ -831,10 +1100,24 @@ function renderSky() {
   $('view-farm').classList.toggle('raining', isRaining());
 }
 
-/* ---------- Rendering: field ---------- */
+/* ---------- Rendering: field (3D or 2D) ---------- */
 
+let farm3d = null;
 const tileEls = [];
 const tileSigs = [];
+
+function tileInfo(i) {
+  const t = state.tiles[i];
+  const info = { s: t.s, deco: t.deco, buyable: false, price: 0, crop: t.crop, f: 0, ready: false, wet: !!t.w, weed: !!t.weed };
+  if (t.s === 'locked') {
+    info.buyable = canBuyTile(i);
+    info.price = info.buyable ? landPrice() : 0;
+  } else if (t.s === 'crop') {
+    info.f = Math.min(1, t.p / cropTotal(t));
+    info.ready = info.f >= 1;
+  }
+  return info;
+}
 
 function buildField() {
   const field = $('field');
@@ -860,7 +1143,7 @@ function tileView(i) {
   if (t.s === 'grass') return { cls: 'tile t-grass', html: '' };
   if (t.s === 'soil') return { cls: 'tile t-soil', html: t.weed ? '<span class="plant weed">🌿</span>' : '' };
   const ready = cropReady(t);
-  const stage = ready ? 2 : t.p / (CROPS[t.crop].time * 1000) < 0.5 ? 0 : 1;
+  const stage = ready ? 2 : t.p / cropTotal(t) < 0.5 ? 0 : 1;
   const icon = stage === 0 ? '🌱' : ITEMS[t.crop].icon;
   return {
     cls: `tile t-soil stage${stage}${t.w ? ' wet' : ''}${ready ? ' ready' : ''}`,
@@ -881,7 +1164,7 @@ function renderTile(i) {
   const t = state.tiles[i];
   if (t.s === 'crop' && !cropReady(t)) {
     const bar = el.querySelector('.pbar i');
-    if (bar) bar.style.width = `${(t.p / (CROPS[t.crop].time * 1000)) * 100}%`;
+    if (bar) bar.style.width = `${(t.p / cropTotal(t)) * 100}%`;
   }
 }
 
@@ -890,10 +1173,14 @@ function renderField() {
 }
 
 function renderSeedbar() {
-  const html = Object.entries(CROPS).map(([id, c]) => {
+  const event = halloweenActive();
+  const html = Object.keys(CROPS).map(id => {
+    const c = cropInfo(id);
     const locked = state.level < c.level;
-    const cls = `seed${locked ? ' locked' : ''}${state.seed === id ? ' selected' : ''}`;
+    const special = event && id === 'pumpkin';
+    const cls = `seed${locked ? ' locked' : ''}${state.seed === id ? ' selected' : ''}${special ? ' event' : ''}`;
     return `<button class="${cls}" type="button" data-seed="${id}" role="option" aria-selected="${state.seed === id}">
+      ${special ? '<em class="seed-tag">Halloween</em>' : ''}
       <span class="icon">${ITEMS[id].icon}</span>
       <span class="cost">${locked ? `🔒 ${c.level}` : `🪙${c.cost}`}</span>
       <span class="time">${fmtTime(c.time)}</span>
@@ -906,11 +1193,12 @@ let tipIndex = 0;
 let tipTimer = 0;
 
 function renderHint() {
-  const crop = CROPS[state.seed];
+  const crop = cropInfo(state.seed);
+  const tips = halloweenActive() ? [...HALLOWEEN_TIPS, ...TIPS] : TIPS;
   let text;
   if (state.coins < crop.cost && !state.tiles.some(cropReady)) text = '🪙 Brak monet na nasiona — sprzedaj plony w Stodole.';
   else if (state.tiles.some(t => t.s === 'crop' && !t.w && !cropReady(t)) && !isRaining()) text = '💧 Dotknij spragnionej rośliny, aby ją podlać — urośnie 2× szybciej.';
-  else text = TIPS[tipIndex % TIPS.length];
+  else text = tips[tipIndex % tips.length];
   if ($('hint').textContent !== text) $('hint').textContent = text;
 }
 
@@ -930,12 +1218,12 @@ function barValue(key) {
     const animal = state.animals[idx];
     if (!animal) return null;
     const total = ANIMALS[animal.type].time * 1000;
-    return { f: animal.p / total, text: fmtTime((total - animal.p) / 1000) };
+    return { f: animal.p / total, text: fmtTime((total - animal.p) / 1000 / animalSpeed()) };
   }
-  if (kind === 'k') {
-    const slot = state.kitchen[idx];
+  if (kind === 'k' || kind === 'c') {
+    const slot = kind === 'k' ? state.kitchen[idx] : state.event.cauldron[idx];
     if (!slot) return null;
-    const total = RECIPES[slot.r].time * 1000;
+    const total = (kind === 'k' ? RECIPES[slot.r] : HALLOWEEN.recipes[slot.r]).time * 1000;
     return { f: slot.p / total, text: fmtTime((total - slot.p) / 1000) };
   }
   if (kind === 'o') {
@@ -957,11 +1245,10 @@ function updateBars(container) {
   });
 }
 
-function chipsFor(items, check = true) {
+function chipsFor(items) {
   return Object.entries(items).map(([id, n]) => {
     const have = inv(id);
-    const cls = !check ? '' : have >= n ? 'ok' : 'miss';
-    return `<span class="chip ${cls}">${ITEMS[id].icon} ${check ? `${Math.min(have, n)}/${n}` : `×${n}`}</span>`;
+    return `<span class="chip ${have >= n ? 'ok' : 'miss'}">${ITEMS[id].icon} ${Math.min(have, n)}/${n}</span>`;
   }).join('');
 }
 
@@ -988,11 +1275,11 @@ function renderAnimals() {
         <span class="big-icon">${a.icon}</span>
         <div class="grow">
           <h3>${a.name} <small>${mine.length}/${a.max}</small></h3>
-          <p>Je: ${Object.entries(a.feed).map(([id, n]) => `${ITEMS[id].icon}×${n}`).join(' ')} · Daje: ${ITEMS[a.product].icon} co ${fmtTime(a.time)}</p>
+          <p>Je: ${Object.entries(a.feed).map(([id, n]) => `${ITEMS[id].icon}×${n}`).join(' ')} · Daje: ${ITEMS[a.product].icon} co ${fmtTime(a.time / animalSpeed())}</p>
         </div>
         <button class="btn small gold" type="button" data-act="buyAnimal" data-arg="${type}" ${full || state.coins < price ? 'disabled' : ''}>${full ? 'Pełno' : `🪙 ${price}`}</button>
       </div>
-      ${mine.length ? `<div class="pen">${pen}</div>` : '<p class="empty">Kup pierwsze zwierzę, aby zacząć hodowlę.</p>'}
+      ${mine.length ? `<div class="pen">${pen}</div>` : '<p class="empty">Kup pierwsze zwierzę — zobaczysz je w zagrodzie za polem.</p>'}
     </div>`;
   }).join('');
   const box = $('animals');
@@ -1005,20 +1292,23 @@ function renderAnimals() {
   $('collectAllBtn').classList.toggle('hidden', !any);
 }
 
+function slotButton(kind, idx, slot, total, extraCls = '') {
+  if (!slot) return `<div class="slot kitchen-slot empty-slot ${extraCls}">Wolne miejsce</div>`;
+  const icon = ITEMS[slot.r].icon;
+  const act = kind === 'k' ? 'slot' : 'cauldron';
+  if (slot.p >= total) {
+    return `<button class="slot kitchen-slot ready ${extraCls}" type="button" data-act="${act}" data-arg="${idx}"><span class="main">${icon}</span><span class="bubble">✅</span></button>`;
+  }
+  return `<button class="slot kitchen-slot ${extraCls}" type="button" data-act="${act}" data-arg="${idx}"><span class="main">${icon}</span><span class="ptext"></span><span class="pbar" data-bar="${kind}:${idx}"><i></i></span></button>`;
+}
+
 function renderKitchen() {
   const box = $('kitchen');
   if (state.level < KITCHEN_LEVEL) {
     patch(box, `<div class="card locked"><div class="big-icon">🍳</div><b>Kuchnia jest zamknięta</b><p>🔒 Odblokujesz ją na poziomie ${KITCHEN_LEVEL}. Przerabiaj plony na droższe przysmaki!</p></div>`);
     return;
   }
-  const slots = state.kitchen.map((slot, idx) => {
-    if (!slot) return '<div class="slot kitchen-slot empty-slot">Wolny palnik</div>';
-    const r = RECIPES[slot.r];
-    if (slot.p >= r.time * 1000) {
-      return `<button class="slot kitchen-slot ready" type="button" data-act="slot" data-arg="${idx}"><span class="main">${ITEMS[slot.r].icon}</span><span class="bubble">✅</span></button>`;
-    }
-    return `<button class="slot kitchen-slot" type="button" data-act="slot" data-arg="${idx}"><span class="main">${ITEMS[slot.r].icon}</span><span class="ptext"></span><span class="pbar" data-bar="k:${idx}"><i></i></span></button>`;
-  });
+  const slots = state.kitchen.map((slot, idx) => slotButton('k', idx, slot, slot ? RECIPES[slot.r].time * 1000 : 0));
   if (state.kitchen.length < MAX_KITCHEN_SLOTS) {
     slots.push(`<button class="slot kitchen-slot empty-slot" type="button" data-act="buySlot">➕ Palnik<br>🪙 ${KITCHEN_SLOT_PRICE}</button>`);
   }
@@ -1033,7 +1323,7 @@ function renderKitchen() {
       <div class="grow">
         <h4>${ITEMS[id].name}</h4>
         <div class="chips">${chipsFor(r.input)}</div>
-        <div class="meta">⏱ ${fmtTime(r.time)} · wartość 🪙 ${ITEMS[id].price}</div>
+        <div class="meta">⏱ ${fmtTime(r.time)} · wartość 🪙 ${sellPrice(id)}</div>
       </div>
       <button class="btn small" type="button" data-act="cook" data-arg="${id}" ${ok && free ? '' : 'disabled'}>Gotuj</button>
     </div>`;
@@ -1047,15 +1337,15 @@ function renderOrders() {
     if (order.wait !== undefined) {
       return `<div class="card order waiting"><span class="walker">🚶</span><b>Ktoś idzie przez wieś…</b><span class="ptext"></span><span class="pbar" data-bar="o:${idx}"><i></i></span></div>`;
     }
-    const [face, name] = NPCS[order.npc];
+    const [face, name] = npcOf(order);
     const ok = hasItems(order.items);
-    return `<div class="card order">
+    return `<div class="card order${order.ev ? ' spooky' : ''}">
       <div class="card-head">
         <span class="npc">${face}</span>
         <div class="grow"><h3>${name}</h3><p>${order.text}</p></div>
       </div>
       <div class="chips">${chipsFor(order.items)}</div>
-      <div class="reward"><span>🪙 ${order.coins}</span><span>⭐ ${order.xp}</span></div>
+      <div class="reward"><span>🪙 ${order.coins}</span><span>⭐ ${order.xp}</span>${order.pts ? `<span>👻 ${order.pts}</span>` : ''}</div>
       <div class="actions">
         <button class="btn" type="button" data-act="deliver" data-arg="${idx}" ${ok ? '' : 'disabled'}>Oddaj</button>
         <button class="btn ghost" type="button" data-act="skip" data-arg="${idx}" aria-label="Odrzuć">🗑️</button>
@@ -1069,15 +1359,73 @@ function renderOrders() {
 
 function renderBarn() {
   const ids = Object.keys(ITEMS).filter(id => inv(id) > 0);
-  const total = ids.reduce((sum, id) => sum + inv(id) * ITEMS[id].price, 0);
+  const total = ids.reduce((sum, id) => sum + inv(id) * sellPrice(id), 0);
   $('barnValue').textContent = ids.length ? `Wartość: 🪙 ${total}` : '';
   const rows = ids.map(id => `<div class="barn-row">
       <span class="big-icon">${ITEMS[id].icon}</span>
-      <div class="grow"><b>${ITEMS[id].name} ×${inv(id)}</b><p class="meta">🪙 ${ITEMS[id].price} / szt.</p></div>
+      <div class="grow"><b>${ITEMS[id].name} ×${inv(id)}</b><p class="meta">🪙 ${sellPrice(id)} / szt.</p></div>
       <button class="btn small ghost" type="button" data-act="sell1" data-arg="${id}">Sprzedaj 1</button>
       <button class="btn small gold" type="button" data-act="sellAll" data-arg="${id}">Wszystko</button>
     </div>`).join('');
   patch($('barn'), ids.length ? `<div class="card">${rows}</div>` : '<div class="card"><p class="empty">Stodoła jest pusta. Zbierz plony z pola! 🌾</p></div>');
+}
+
+function renderEvent() {
+  const box = $('event');
+  if (!halloweenActive()) {
+    patch(box, '<div class="card locked"><div class="big-icon">🎃</div><b>Halloween się skończył</b><p>Zdobyte ozdoby zostają w gospodarstwie na zawsze. Do zobaczenia za rok!</p></div>');
+    return;
+  }
+  const ev = state.event;
+  const ms = HALLOWEEN.milestones;
+  const next = ms.find(m => ev.points < m.points);
+  const prevPts = next ? (ms[ms.indexOf(next) - 1] || { points: 0 }).points : 0;
+  const progress = next ? (ev.points - prevPts) / (next.points - prevPts) : 1;
+  const rows = ms.map((m, k) => {
+    const claimed = ev.claimed.includes(k);
+    const reached = ev.points >= m.points;
+    const action = claimed
+      ? '<span class="chip ok">✔ Odebrane</span>'
+      : reached
+        ? `<button class="btn small gold" type="button" data-act="claim" data-arg="${k}">Odbierz</button>`
+        : `<span class="chip">👻 ${m.points}</span>`;
+    return `<div class="milestone${claimed ? ' claimed' : ''}${reached && !claimed ? ' reachable' : ''}">
+      <div class="grow"><b>${m.label}</b>${m.perk ? `<p class="meta">${m.perk}</p>` : ''}</div>${action}
+    </div>`;
+  }).join('');
+  const free = ev.cauldron.some(s => s === null);
+  const slots = ev.cauldron.map((slot, idx) => slotButton('c', idx, slot, slot ? HALLOWEEN.recipes[slot.r].time * 1000 : 0, 'cauldron-slot')).join('');
+  const recipes = Object.entries(HALLOWEEN.recipes).map(([id, r]) => {
+    const ok = hasItems(r.input);
+    return `<div class="recipe">
+      <span class="big-icon">${ITEMS[id].icon}</span>
+      <div class="grow">
+        <h4>${ITEMS[id].name}${r.out > 1 ? ` ×${r.out}` : ''}</h4>
+        <div class="chips">${chipsFor(r.input)}</div>
+        <div class="meta">⏱ ${fmtTime(r.time)} · 👻 +${r.points} · 🪙 ${sellPrice(id)}/szt.</div>
+      </div>
+      <button class="btn small purple" type="button" data-act="brew" data-arg="${id}" ${ok && free ? '' : 'disabled'}>Warz</button>
+    </div>`;
+  }).join('');
+  patch(box, `
+    <div class="card event-hero">
+      <div class="card-head">
+        <span class="big-icon">🎃</span>
+        <div class="grow"><h3>Halloween na wsi</h3><p>Zostało ${eventDaysLeft()} dni · nagrody zostają na zawsze</p></div>
+      </div>
+      <div class="event-points"><b>👻 ${ev.points}</b><span>${next ? `do nagrody: ${next.points - ev.points}` : 'wszystko zdobyte!'}</span></div>
+      <div class="event-bar"><i style="width:${Math.min(100, progress * 100)}%"></i></div>
+    </div>
+    <div class="card"><h3 class="card-title">🏆 Nagrody</h3>${rows}</div>
+    <div class="card cauldron-card"><h3 class="card-title">🧪 Kociołek czarownicy</h3><div class="kitchen-slots two">${slots}</div>${recipes}</div>
+    <div class="card"><h3 class="card-title">Jak zdobywać 👻?</h3>
+      <ul class="howto">
+        <li>🎃 Zbieraj dynie z pola: +${HALLOWEEN.harvestPoints} 👻 (w Halloween rosną od 1. poziomu).</li>
+        <li>🧪 Warz przysmaki w kociołku.</li>
+        <li>🧛 Spełniaj zamówienia potworów z wioski.</li>
+      </ul>
+    </div>`);
+  updateBars(box);
 }
 
 let activeTab = 'farm';
@@ -1085,17 +1433,24 @@ let activeTab = 'farm';
 function renderAll() {
   renderHud();
   if (activeTab === 'farm') {
-    renderSky();
-    renderField();
+    if (!farm3d) {
+      renderSky();
+      renderField();
+    }
     renderSeedbar();
     renderHint();
   } else if (activeTab === 'animals') renderAnimals();
   else if (activeTab === 'kitchen') renderKitchen();
   else if (activeTab === 'orders') renderOrders();
   else if (activeTab === 'barn') renderBarn();
+  else if (activeTab === 'event') renderEvent();
 }
 
 function fitField() {
+  if (farm3d) {
+    farm3d.resize();
+    return;
+  }
   const wrap = $('fieldWrap');
   const gap = 4;
   const chrome = 2 * 7 + 2 * 5 + 6;
@@ -1110,6 +1465,7 @@ function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${tab}`));
+  if (farm3d) farm3d.setActive(tab === 'farm' && !document.hidden);
   if (tab === 'farm') fitField();
   renderAll();
 }
@@ -1123,11 +1479,14 @@ function showHelp() {
     body: `<ul>
       <li>🌱 <b>Pole:</b> dotknij trawy, by zaorać. Wybierz nasiona na dole i dotknij grządki, by zasiać. Możesz przeciągać palcem!</li>
       <li>💧 <b>Podlewanie:</b> podlana roślina rośnie 2× szybciej.</li>
-      <li>🧺 <b>Zbiory:</b> dojrzałe rośliny błyszczą — dotknij, by zebrać.</li>
+      <li>🧺 <b>Zbiory:</b> dojrzałe rośliny mają złotą obwódkę — dotknij, by zebrać.</li>
+      <li>⟳ <b>Kamera:</b> przycisk w rogu obraca widok gospodarstwa.</li>
       <li>🐔 <b>Zagroda:</b> karm zwierzęta plonami i zbieraj jajka, mleko, miód i wełnę.</li>
       <li>🍳 <b>Kuchnia:</b> przerabiaj produkty na droższe przysmaki.</li>
       <li>📋 <b>Zamówienia:</b> sąsiedzi płacą najlepiej i dają dużo ⭐.</li>
       <li>🏚️ <b>Stodoła:</b> tu trzymasz zbiory i sprzedajesz je za monety.</li>
+      <li>🎁 <b>Codzienna nagroda:</b> wracaj każdego dnia, aby zwiększać serię.</li>
+      <li>🎃 <b>Wydarzenia:</b> w Halloween zbieraj 👻 i zdobywaj ozdoby z bonusami.</li>
     </ul>`,
     buttons: [{ label: 'Do roboty!', cls: 'gold' }]
   });
@@ -1143,8 +1502,10 @@ function showMenu() {
         <li>🧺 Zebrane plony: <b>${s.harvested}</b></li>
         <li>📋 Spełnione zamówienia: <b>${s.orders}</b></li>
         <li>🪙 Zarobione monety: <b>${s.earned}</b></li>
+        <li>🔥 Seria codziennych nagród: <b>${state.daily.streak}</b></li>
       </ul>
-      <div class="toggle-row"><span>🔊 Dźwięki</span><button class="btn small ${state.sound ? '' : 'ghost'}" id="soundToggle" type="button">${state.sound ? 'Włączone' : 'Wyłączone'}</button></div>`,
+      <div class="toggle-row"><span>🔊 Dźwięki</span><button class="btn small ${state.sound ? '' : 'ghost'}" id="soundToggle" type="button">${state.sound ? 'Włączone' : 'Wyłączone'}</button></div>
+      <div class="toggle-row"><span>🎨 Grafika</span><button class="btn small" id="gfxToggle" type="button">${state.gfx === '2d' ? 'Klasyczna 2D' : 'Pełne 3D'}</button></div>`,
     buttons: [
       { label: 'Jak grać?', cls: 'ghost', onClick: showHelp },
       { label: 'Zacznij od nowa', cls: 'red', onClick: confirmReset },
@@ -1158,6 +1519,11 @@ function showMenu() {
         sfx('coin');
         save();
       });
+      card.querySelector('#gfxToggle').addEventListener('click', () => {
+        state.gfx = state.gfx === '2d' ? '3d' : '2d';
+        save();
+        location.reload();
+      });
     }
   });
 }
@@ -1166,14 +1532,17 @@ function confirmReset() {
   showModal({
     hero: '⚠️',
     title: 'Zacząć od nowa?',
-    body: '<p>Stracisz całe gospodarstwo, zwierzęta i monety. Tego nie da się cofnąć.</p>',
+    body: '<p>Stracisz całe gospodarstwo, zwierzęta, monety i ozdoby. Tego nie da się cofnąć.</p>',
     buttons: [
       {
         label: 'Tak, nowa gra',
         cls: 'red',
         onClick: () => {
+          const gfx = state.gfx;
           state = newGame();
           state.seenIntro = true;
+          state.gfx = gfx;
+          ensureEventSeason();
           save();
           tileSigs.fill('');
           renderAll();
@@ -1190,11 +1559,28 @@ function showIntro() {
     hero: '🏡',
     title: 'Witaj na wsi!',
     body: `<p>Dziadek zostawił Ci małe gospodarstwo. Pszenica już dojrzała — <b>dotknij złotych kłosów</b>, aby je zebrać.</p>
-      <p>Potem siej, podlewaj, hoduj zwierzęta i pomagaj sąsiadom. Powodzenia, gospodarzu!</p>`,
+      <p>Potem siej, podlewaj, hoduj zwierzęta i pomagaj sąsiadom.${halloweenActive() ? ' A na wsi właśnie trwa <b>Halloween</b> 🎃!' : ''}</p>`,
     buttons: [
       { label: 'Zaczynamy! 🌾', cls: 'gold', onClick: () => { state.seenIntro = true; save(); } },
       { label: 'Jak grać?', cls: 'ghost', onClick: () => { state.seenIntro = true; save(); showHelp(); } }
     ]
+  });
+}
+
+function showEventIntro() {
+  if (!halloweenActive() || state.event.seenIntro === state.event.year) return;
+  state.event.seenIntro = state.event.year;
+  showModal({
+    hero: '🎃',
+    title: 'Halloween na wsi!',
+    body: `<p>Po wsi krążą wampirki i duszki, a nad polem latają nietoperze.</p>
+      <ul>
+        <li>🎃 Dynie rosną już od 1. poziomu.</li>
+        <li>🧪 Kociołek czarownicy warzy cukierki i eliksiry.</li>
+        <li>👻 Zbieraj punkty i odbieraj ozdoby z bonusami, które zostaną na zawsze.</li>
+      </ul>
+      <p>Zostało <b>${eventDaysLeft()} dni</b>!</p>`,
+    buttons: [{ label: 'Buuu! Gramy 🎃', cls: 'gold', onClick: () => switchTab('event') }, { label: 'Później', cls: 'ghost' }]
   });
 }
 
@@ -1204,15 +1590,16 @@ let drag = null;
 const DRAG_ACTIONS = new Set(['plow', 'plant', 'water', 'harvest', 'weed']);
 
 function tileFromPoint(x, y) {
+  if (farm3d) return farm3d.pick(x, y);
   const el = document.elementFromPoint(x, y);
   const tile = el && el.closest('.tile');
   return tile ? Number(tile.dataset.i) : -1;
 }
 
 function bindInput() {
-  const field = $('field');
+  const surface = farm3d ? $('scene3d') : $('field');
 
-  field.addEventListener('pointerdown', e => {
+  surface.addEventListener('pointerdown', e => {
     unlockAudio();
     const i = tileFromPoint(e.clientX, e.clientY);
     if (i < 0) return;
@@ -1222,10 +1609,10 @@ function bindInput() {
     if (action === 'info') return showCropInfo(i);
     if (!action || !doAction(i, action)) return;
     drag = { action, done: new Set([i]) };
-    try { field.setPointerCapture(e.pointerId); } catch { /* starsze przeglądarki */ }
+    try { surface.setPointerCapture(e.pointerId); } catch { /* starsze przeglądarki */ }
   });
 
-  field.addEventListener('pointermove', e => {
+  surface.addEventListener('pointermove', e => {
     if (!drag || !DRAG_ACTIONS.has(drag.action)) return;
     const i = tileFromPoint(e.clientX, e.clientY);
     if (i < 0 || drag.done.has(i)) return;
@@ -1238,23 +1625,33 @@ function bindInput() {
     if (drag) save();
     drag = null;
   };
-  field.addEventListener('pointerup', endDrag);
-  field.addEventListener('pointercancel', endDrag);
-  field.addEventListener('lostpointercapture', endDrag);
+  surface.addEventListener('pointerup', endDrag);
+  surface.addEventListener('pointercancel', endDrag);
+  surface.addEventListener('lostpointercapture', endDrag);
+
+  $('rotateBtn').addEventListener('click', () => {
+    unlockAudio();
+    if (farm3d) farm3d.rotate(1);
+    sfx('plant');
+  });
+  $('eventPill').addEventListener('click', () => {
+    unlockAudio();
+    switchTab('event');
+  });
 
   $('seedbar').addEventListener('click', e => {
     const btn = e.target.closest('[data-seed]');
     if (!btn) return;
     unlockAudio();
     const id = btn.dataset.seed;
-    const c = CROPS[id];
+    const c = cropInfo(id);
     if (state.level < c.level) {
       toast(`${itemLabel(id)} — odblokujesz na poziomie ${c.level}.`);
       return;
     }
     state.seed = id;
     sfx('plant');
-    toast(`${itemLabel(id)}: 🪙${c.cost}, rośnie ${fmtTime(c.time)}, plon ×${HARVEST_YIELD} (🪙${ITEMS[id].price}/szt.)`);
+    toast(`${itemLabel(id)}: 🪙${c.cost}, rośnie ${fmtTime(c.time)}, plon ×${HARVEST_YIELD} (🪙${sellPrice(id)}/szt.)`);
     renderSeedbar();
     renderHint();
   });
@@ -1272,13 +1669,16 @@ function bindInput() {
     slot: (arg, el) => tapSlot(Number(arg), el),
     buySlot: () => buyKitchenSlot(),
     cook: arg => cook(arg),
+    cauldron: (arg, el) => tapCauldron(Number(arg), el),
+    brew: arg => brew(arg),
+    claim: arg => claimMilestone(Number(arg)),
     deliver: (arg, el) => deliverOrder(Number(arg), el),
     skip: arg => skipOrder(Number(arg)),
     sell1: (arg, el) => sellItem(arg, 1, el),
     sellAll: (arg, el) => sellItem(arg, Infinity, el)
   };
 
-  ['animals', 'kitchen', 'orders', 'barn'].forEach(id => {
+  ['animals', 'kitchen', 'orders', 'barn', 'event'].forEach(id => {
     $(id).addEventListener('click', e => {
       const el = e.target.closest('[data-act]');
       if (!el || el.disabled) return;
@@ -1314,9 +1714,10 @@ function bindInput() {
   });
 
   window.addEventListener('resize', fitField);
-  if ('ResizeObserver' in window) new ResizeObserver(fitField).observe($('fieldWrap'));
+  if ('ResizeObserver' in window) new ResizeObserver(fitField).observe(farm3d ? $('scene') : $('fieldWrap'));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) save();
+    if (farm3d) farm3d.setActive(activeTab === 'farm' && !document.hidden);
   });
   window.addEventListener('pagehide', save);
 }
@@ -1325,6 +1726,7 @@ function bindInput() {
 
 let lastTick = Date.now();
 let saveTimer = 0;
+let dailyTimer = 0;
 
 function tick() {
   const now = Date.now();
@@ -1343,6 +1745,12 @@ function tick() {
   if (saveTimer > 5000) {
     saveTimer = 0;
     save();
+  }
+  dailyTimer += dt;
+  if (dailyTimer > 30000) {
+    dailyTimer = 0;
+    ensureEventSeason();
+    if (!modalOpen && state.seenIntro) checkDaily();
   }
   renderAll();
 }
@@ -1363,14 +1771,43 @@ function welcomeBack() {
   });
 }
 
+function initGraphics() {
+  if (state.gfx !== '2d') {
+    try {
+      farm3d = createFarm3D($('scene3d'), {
+        cols: COLS,
+        rows: ROWS,
+        tile: tileInfo,
+        hour: hourOfDay,
+        weather: () => state.weather,
+        halloween: halloweenActive,
+        decor: () => state.decor,
+        animals: () => state.animals,
+        animalProduct: type => ITEMS[ANIMALS[type].product].icon
+      });
+    } catch (err) {
+      console.warn('3D niedostępne, używam grafiki 2D', err);
+      farm3d = null;
+    }
+  }
+  document.body.classList.toggle('gfx-3d', !!farm3d);
+  document.body.classList.toggle('gfx-2d', !farm3d);
+  if (!farm3d) buildField();
+}
+
 function init() {
-  buildField();
+  initGraphics();
   bindInput();
+  ensureEventSeason();
+  delete state.daily.pending;
   if (state.seenIntro) welcomeBack();
   else showIntro();
+  showEventIntro();
+  checkDaily();
   while (state.orders.length < ORDER_SLOTS) state.orders.push(makeOrder());
   fitField();
   renderAll();
+  if (farm3d) farm3d.setActive(!document.hidden);
   lastTick = Date.now();
   setInterval(tick, 250);
 
@@ -1380,5 +1817,13 @@ function init() {
     });
   }
 }
+
+// Uchwyt do debugowania z konsoli przeglądarki.
+window.wz = {
+  get state() { return state; },
+  set state(v) { state = v; },
+  addXp, save, nextModal, modalQueue, cropReady, claimMilestone, DAY_LENGTH, SAVE_KEY,
+  get farm3d() { return farm3d; }
+};
 
 init();

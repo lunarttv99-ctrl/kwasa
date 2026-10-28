@@ -1,9 +1,13 @@
-const CACHE_NAME = 'wiejskie-zycie-v1';
+const CACHE_NAME = 'wiejskie-zycie-v2';
 const FILES_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   './game.js',
+  './farm3d.js',
+  './vendor/three.module.min.js',
+  './fonts/fredoka-latin.woff2',
+  './fonts/fredoka-latin-ext.woff2',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
