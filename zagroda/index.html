@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#5d3a1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Zagroda" />
+  <meta name="description" content="Wiejska Zagroda — farmerska gra w rzucie izometrycznym: pola, zwierzęta, sad, młyn, piekarnia, zamówienia i sąsiedzi." />
+  <title>Wiejska Zagroda</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preload" href="fonts/fredoka-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-tool="hand">
+  <div class="splash" id="splash">
+    <div class="splash-card">
+      <div class="splash-logo">🌻</div>
+      <h1>Wiejska<br>Zagroda</h1>
+      <div class="splash-bar"><i></i></div>
+      <p>Ładowanie gospodarstwa…</p>
+    </div>
+  </div>
+
+  <canvas id="map" aria-label="Mapa gospodarstwa"></canvas>
+
+  <header class="hud">
+    <button class="hud-level" id="levelBtn" type="button" aria-label="Poziom">
+      <span class="star"><b id="lvl">1</b></span>
+      <span class="xpbar"><i id="xpFill"></i><em id="xpText">0 / 0</em></span>
+    </button>
+    <div class="hud-money">
+      <span class="pill coins" id="coinsPill"><span class="pill-ico">🪙</span><b id="coins">0</b></span>
+      <button class="pill ducats" id="ducatBtn" type="button"><span class="pill-ico">💎</span><b id="ducats">0</b><span class="plus">+</span></button>
+    </div>
+  </header>
+
+  <aside class="tools" aria-label="Narzędzia">
+    <button class="tool active" data-tool="hand" type="button" title="Ręka — zbieranie i obsługa"><span>✋</span><small>Ręka</small></button>
+    <button class="tool" data-tool="plow" type="button" title="Pług — oranie pól"><span>🚜</span><small>Pług</small></button>
+    <button class="tool" data-tool="plant" type="button" title="Siew"><span id="seedTool">🌱</span><small>Siew</small></button>
+    <button class="tool" data-tool="move" type="button" title="Przesuń"><span>✥</span><small>Przesuń</small></button>
+    <button class="tool" data-tool="sell" type="button" title="Sprzedaj"><span>💰</span><small>Sprzedaj</small></button>
+  </aside>
+
+  <aside class="quests" id="quests" aria-label="Zadania"></aside>
+
+  <div class="zoom">
+    <button id="zoomIn" type="button" aria-label="Przybliż">+</button>
+    <button id="zoomOut" type="button" aria-label="Oddal">−</button>
+  </div>
+
+  <div class="seed-chip" id="seedChip"></div>
+
+  <div class="ghost-bar" id="ghostBar">
+    <span id="ghostLabel"></span>
+    <div>
+      <button class="btn red" id="ghostCancel" type="button">✖ Anuluj</button>
+      <button class="btn green" id="ghostOk" type="button">✔ Postaw</button>
+    </div>
+    <small>Przeciągnij obiekt palcem w wybrane miejsce</small>
+  </div>
+
+  <nav class="bottombar">
+    <button id="shopBtn" type="button"><span>🛒</span><small>Sklep</small></button>
+    <button id="barnBtn" type="button"><span>📦</span><small>Stodoła <em id="barnCount"></em></small></button>
+    <button id="ordersBtn" type="button"><span>📋</span><small>Zamówienia</small></button>
+    <button id="nbBtn" type="button"><span>👥</span><small>Sąsiedzi</small></button>
+    <button id="menuBtn" type="button"><span>☰</span><small>Menu</small></button>
+  </nav>
+
+  <div class="sheet" id="sheet">
+    <div class="sheet-card">
+      <div class="sheet-head"><h2></h2><button class="x" type="button" aria-label="Zamknij">✕</button></div>
+      <div class="tabs"></div>
+      <div class="sheet-body"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal"><div class="modal-card"></div></div>
+  <div class="tip" id="tip"></div>
+  <div class="toast" id="toast"></div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
