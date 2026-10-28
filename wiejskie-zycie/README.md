@@ -2,6 +2,15 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## ✨ Wersja 6 — nowoczesna grafika
+
+- **Realistyczne oświetlenie (PBR):** materiały fizyczne oświetlane światłem rozproszonym w atmosferze (model nieba Preethama), miękkie cienie 2048 px, złote zachody słońca.
+- **Zaokrąglone, gładkie modele:** zaokrąglone krawędzie wszystkich brył, gładkie cieniowanie i więcej detali na obłych kształtach.
+- **Tekstury proceduralne:** deski stodoły i domu, dachówki, słoje drewna płotu, bruzdy w ziemi, trawa (z wypukłościami — bump mapping).
+- **Efekty kinowe:** poświata (bloom) latarni, okien i kociołka nocą, korekcja kolorów i winieta.
+- **Nowoczesny interfejs:** ciemne, szklane panele z rozmyciem, duże zaokrąglenia, jasne karty z miękkimi cieniami, zielone saldo monet.
+- Tryb **3D oszczędne** zostaje lekki: zwykłe materiały, bez efektów kinowych, cienie w niższej rozdzielczości.
+
 ## 🎨 Wersja 5 — wielka aktualizacja wizualna
 
 - **Krajobraz:** pagórkowaty teren z cieniowaniem, pas lasu dookoła, łąki pełne trawy i kwiatów.
@@ -90,6 +99,8 @@ To zwykłe pliki statyczne – nie trzeba niczego budować.
 - `agent.js` – Sowa Mądralińska: odpowiedzi na pytania, rady i encyklopedia,
 - `farm3d.js` – scena 3D gospodarstwa,
 - `scenery.js` – krajobraz i życie wokół gospodarstwa (teren, las, łąka, woda, zwierzęta, cząsteczki),
+- `look.js` – styl renderowania: materiały PBR, światło nieba, tekstury proceduralne, zaokrąglone bryły i efekty kinowe,
+- `vendor/addons/` – dodatki Three.js (niebo, zaokrąglone pudełka, post-processing; licencja MIT),
 - `vendor/three.module.min.js` – biblioteka Three.js r169 (licencja MIT, `vendor/three-LICENSE.txt`),
 - `fonts/` – czcionka Fredoka (licencja SIL Open Font License),
 - `manifest.webmanifest`, `sw.js` – instalacja jako aplikacja i tryb offline,

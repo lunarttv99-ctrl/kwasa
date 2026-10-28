@@ -3411,6 +3411,25 @@ function showWhatsNewV4() {
   });
 }
 
+function showWhatsNewV6() {
+  if (state.seenV6 || !state.seenIntro) {
+    state.seenV6 = true;
+    return;
+  }
+  state.seenV6 = true;
+  showModal({
+    hero: '✨',
+    title: 'Nowa grafika 6.0!',
+    body: `<ul>
+      <li>🌞 <b>Realistyczne światło:</b> niebo oświetla farmę jak w prawdziwym świecie, a o zachodzie wszystko robi się złote.</li>
+      <li>🧱 <b>Zaokrąglone, gładkie modele</b> i tekstury: deski stodoły, dachówki, ziemia w bruzdach, trawa.</li>
+      <li>🎬 <b>Efekty kinowe:</b> poświata świateł nocą, korekcja kolorów i winieta.</li>
+      <li>📱 <b>Nowoczesny interfejs</b> z ciemnymi, szklanymi panelami i dużymi zaokrągleniami.</li>
+    </ul><p class="meta">Jeśli telefon zwalnia, wybierz ⚙️ Ustawienia → Grafika → <b>3D oszczędne</b>.</p>`,
+    buttons: [{ label: 'Pięknie!', cls: 'gold' }]
+  });
+}
+
 function showEventIntro() {
   if (!halloweenActive() || state.event.seenIntro === state.event.year) return;
   state.event.seenIntro = state.event.year;
@@ -3760,7 +3779,7 @@ function checkPerformance(dt) {
   showModal({
     hero: '🐢',
     title: 'Gra działa wolno?',
-    body: '<p>Ten telefon ma trudność z pełną grafiką 3D. Tryb <b>3D oszczędne</b> wyłącza cienie i część ozdób, żeby gra działała płynnie.</p><p class="meta">Zawsze możesz to zmienić w ⚙️ Ustawienia → Grafika.</p>',
+    body: '<p>Ten telefon ma trudność z pełną grafiką 3D. Tryb <b>3D oszczędne</b> wyłącza efekty kinowe, realistyczne światło i część ozdób, żeby gra działała płynnie.</p><p class="meta">Zawsze możesz to zmienić w ⚙️ Ustawienia → Grafika.</p>',
     buttons: [
       { label: 'Przełącz na 3D oszczędne', cls: 'gold', onClick: () => { state.gfx = '3d-low'; save(); location.reload(); } },
       { label: 'Zostaw pełne 3D', cls: 'ghost' }
@@ -3832,6 +3851,7 @@ function init() {
   else showIntro();
   showWhatsNew();
   showWhatsNewV4();
+  showWhatsNewV6();
   showEventIntro();
   checkDaily();
   while (state.orders.length < orderSlots()) state.orders.push(makeOrder());

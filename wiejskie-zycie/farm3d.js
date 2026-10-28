@@ -3,6 +3,7 @@ import {
   createTerrain, createForest, createMeadow, createWater, createDucks, createButterflies, createFireflies,
   createLeaves, createBirds, createSmoke, createLamp, createHayBale, createLogPile, createCart, createBursts, makeBlocker
 } from './scenery.js';
+import { setLook, isPBR, surface, roundedBox, createSkyLight, createPost } from './look.js';
 
 // Low-poly 3D farm drawn with Three.js. The game logic lives in game.js;
 // this module only reads the state through the `api` callbacks and renders it.
@@ -81,22 +82,24 @@ function wingGeo() {
   return g;
 }
 
+// Smooth, rounded shapes: round profiles get extra segments (3- and
+// 4-sided cones/cylinders stay as deliberate prisms and pyramids).
+const round = s => (s >= 5 ? Math.max(s, 14) : s);
 const G = {
-  box: (w, h, d) => cached(geoCache, `b${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d)),
-  cyl: (rt, rb, h, s = 6) => cached(geoCache, `c${rt},${rb},${h},${s}`, () => new THREE.CylinderGeometry(rt, rb, h, s)),
-  cone: (r, h, s = 6) => cached(geoCache, `k${r},${h},${s}`, () => new THREE.ConeGeometry(r, h, s)),
-  ico: (r, d = 0) => cached(geoCache, `i${r},${d}`, () => new THREE.IcosahedronGeometry(r, d)),
-  dodeca: r => cached(geoCache, `d${r}`, () => new THREE.DodecahedronGeometry(r, 0)),
-  sphere: (r, w = 8, h = 6) => cached(geoCache, `s${r},${w},${h}`, () => new THREE.SphereGeometry(r, w, h)),
-  cap: r => cached(geoCache, `h${r}`, () => new THREE.SphereGeometry(r, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2)),
+  box: (w, h, d) => cached(geoCache, `b${w},${h},${d},${isPBR()}`, () => roundedBox(w, h, d)),
+  cyl: (rt, rb, h, s = 6) => cached(geoCache, `c${rt},${rb},${h},${s}`, () => new THREE.CylinderGeometry(rt, rb, h, round(s))),
+  cone: (r, h, s = 6) => cached(geoCache, `k${r},${h},${s}`, () => new THREE.ConeGeometry(r, h, round(s))),
+  ico: (r, d = 0) => cached(geoCache, `i${r},${d}`, () => new THREE.IcosahedronGeometry(r, Math.max(d, 2))),
+  dodeca: r => cached(geoCache, `d${r}`, () => new THREE.IcosahedronGeometry(r, 2)),
+  sphere: (r, w = 8, h = 6) => cached(geoCache, `s${r},${w},${h}`, () => new THREE.SphereGeometry(r, Math.max(w, 18), Math.max(h, 12))),
+  cap: r => cached(geoCache, `h${r}`, () => new THREE.SphereGeometry(r, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2)),
   pumpkin: r => cached(geoCache, `p${r}`, () => pumpkinGeo(r)),
   gable: (w, h, d) => cached(geoCache, `g${w},${h},${d}`, () => gableGeo(w, h, d)),
   ring: (a, b) => cached(geoCache, `r${a},${b}`, () => new THREE.RingGeometry(a, b, 24)),
   wing: () => cached(geoCache, 'wing', wingGeo)
 };
 
-const mat = (color, opts = {}) =>
-  cached(matCache, `l${color}${JSON.stringify(opts)}`, () => new THREE.MeshLambertMaterial({ color, flatShading: true, ...opts }));
+const mat = (color, opts = {}) => cached(matCache, `l${color}${JSON.stringify(opts)}${isPBR()}`, () => surface(color, opts));
 const glow = color => cached(matCache, `g${color}`, () => new THREE.MeshBasicMaterial({ color }));
 
 function mesh(geo, material, x = 0, y = 0, z = 0, cast = true) {
@@ -141,7 +144,7 @@ function spriteMaterial(text, style) {
     }
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    return new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
+    return new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false });
   });
 }
 
@@ -463,7 +466,7 @@ function firehallModel() {
 
 function greenhouseModel() {
   const g = new THREE.Group();
-  const glass = new THREE.MeshLambertMaterial({ color: '#d5f3ff', transparent: true, opacity: 0.42, depthWrite: false });
+  const glass = surface('#d5f3ff', { transparent: true, opacity: 0.42, depthWrite: false, ...(isPBR() ? { roughness: 0.08 } : {}) });
   g.add(mesh(G.box(1.4, 0.7, 0.9), glass, 0, 0.35, 0, false));
   g.add(mesh(G.gable(1.4, 0.35, 0.9), glass, 0, 0.7, 0, false));
   [-0.6, -0.2, 0.2, 0.6].forEach(x => {
@@ -527,7 +530,7 @@ function heaterModel() {
   g.add(grill);
   g.userData.grill = grill;
   const puffs = [0, 1, 2].map(k => {
-    const puff = mesh(G.ico(0.07), new THREE.MeshLambertMaterial({ color: '#d9d9d9', transparent: true, opacity: 0.6, depthWrite: false }), -0.1, 0.9, -0.1, false);
+    const puff = mesh(G.ico(0.07), surface('#d9d9d9', { transparent: true, opacity: 0.6, depthWrite: false }), -0.1, 0.9, -0.1, false);
     puff.userData.seed = k / 3;
     g.add(puff);
     return puff;
@@ -719,7 +722,7 @@ function hiveModel() {
 
 function batModel() {
   const g = new THREE.Group();
-  const black = new THREE.MeshLambertMaterial({ color: '#1d1626', side: THREE.DoubleSide });
+  const black = surface('#1d1626', { side: THREE.DoubleSide });
   g.add(mesh(G.sphere(0.06, 6, 5), black, 0, 0, 0, false));
   const left = new THREE.Mesh(G.wing(), black);
   const right = new THREE.Mesh(G.wing(), black);
@@ -731,7 +734,7 @@ function batModel() {
 
 function ghostModel() {
   const g = new THREE.Group();
-  const white = new THREE.MeshLambertMaterial({ color: '#ffffff', transparent: true, opacity: 0.78, emissive: '#c9d6ff', emissiveIntensity: 0.25 });
+  const white = surface('#ffffff', { transparent: true, opacity: 0.78, emissive: '#c9d6ff', emissiveIntensity: 0.25 });
   g.add(mesh(G.sphere(0.28, 12, 8), white, 0, 0.32, 0));
   g.add(mesh(G.cyl(0.28, 0.33, 0.42, 12), white, 0, 0.1, 0));
   [-0.09, 0.09].forEach(x => g.add(mesh(G.sphere(0.045, 6, 5), mat('#1b1b1b'), x, 0.38, 0.25, false)));
@@ -789,14 +792,14 @@ function cauldronModel() {
 
 function gabledBuilding({ w, h, d, roofH, wall, roof }) {
   const g = new THREE.Group();
-  const body = mesh(G.box(w, h, d), mat(wall), 0, h / 2, 0);
+  const body = mesh(G.box(w, h, d), mat(wall, { tex: 'planks' }), 0, h / 2, 0);
   body.receiveShadow = true;
   g.add(body);
-  g.add(mesh(G.gable(w, roofH, d), mat(wall), 0, h, 0));
+  g.add(mesh(G.gable(w, roofH, d), mat(wall, { tex: 'planks', repeat: 0.6 }), 0, h, 0));
   const slope = Math.atan2(roofH, w / 2);
   const len = Math.hypot(w / 2, roofH) + 0.14;
   [-1, 1].forEach(s => {
-    const r = mesh(G.box(len, 0.09, d + 0.2), mat(roof), (s * w) / 4, h + roofH / 2 + 0.03, 0);
+    const r = mesh(G.box(len, 0.09, d + 0.2), mat(roof, { tex: 'shingles' }), (s * w) / 4, h + roofH / 2 + 0.03, 0);
     r.rotation.z = -s * slope;
     g.add(r);
   });
@@ -809,11 +812,12 @@ export function createFarm3D(canvas, api) {
   const quality = api.quality ? api.quality() : 'high';
   const high = quality !== 'low';
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  setLook(quality, renderer);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, high ? 2 : 1.25));
-  renderer.shadowMap.enabled = high;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = high ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = high ? 0.95 : 1.12;
 
   const { cols, rows } = api;
   const scene = new THREE.Scene();
@@ -837,7 +841,8 @@ export function createFarm3D(canvas, api) {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight('#fff4e0', 2.4);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(high ? 1024 : 512, high ? 1024 : 512);
+  sun.shadow.mapSize.set(high ? 2048 : 1024, high ? 2048 : 1024);
+  sun.shadow.radius = 3;
   Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 50 });
   sun.shadow.bias = -0.0008;
   sun.shadow.normalBias = 0.02;
@@ -853,14 +858,17 @@ export function createFarm3D(canvas, api) {
   const ground = createTerrain();
   scene.add(ground);
 
+  const skyLight = createSkyLight(renderer, scene);
+  const post = createPost(renderer, scene, camera);
+
   const bed = mesh(G.box(cols * STEP + 0.4, 0.04, rows * STEP + 0.4), mat('#5d8f2f'), 0, -0.13, 0, false);
   bed.receiveShadow = true;
   scene.add(bed);
 
   // Fence around the field
   const fence = new THREE.Group();
-  const postM = mat('#a8743f');
-  const railM = mat('#c08a52');
+  const postM = mat('#a8743f', { tex: 'wood' });
+  const railM = mat('#c08a52', { tex: 'wood' });
   const postTops = [];
   const addPost = (x, z) => {
     fence.add(mesh(G.cyl(0.05, 0.06, 0.5, 5), postM, x, 0.11, z));
@@ -895,7 +903,7 @@ export function createFarm3D(canvas, api) {
   scene.add(barn);
 
   const house = gabledBuilding({ w: 1.9, h: 1.05, d: 1.5, roofH: 0.7, wall: '#f3e1c1', roof: '#8d4b2a' });
-  const windowMat = new THREE.MeshLambertMaterial({ color: '#3b4a6b', emissive: '#ffcf6a', emissiveIntensity: 0 });
+  const windowMat = surface('#3b4a6b', { emissive: '#ffcf6a', emissiveIntensity: 0, ...(isPBR() ? { roughness: 0.15 } : {}) });
   house.add(mesh(G.box(0.36, 0.6, 0.05), mat('#7a4a2a'), 0.3, 0.3, 0.76, false));
   [-0.45, 0.85].forEach(x => house.add(mesh(G.box(0.32, 0.3, 0.05), windowMat, x - 0.15, 0.62, 0.76, false)));
   house.add(mesh(G.box(0.22, 0.5, 0.22), mat('#9e5a3c'), -0.5, 1.6, -0.2));
@@ -1051,7 +1059,7 @@ export function createFarm3D(canvas, api) {
   decor.scarecrow.position.set(-2.9, -0.14, hz + 0.75);
   decor.ghost.scale.setScalar(0.75);
   decor.scarecrow.rotation.y = 0.3;
-  const gold = mesh(G.pumpkin(0.6), new THREE.MeshLambertMaterial({ color: '#ffcf33', emissive: '#b8860b', emissiveIntensity: 0.35, flatShading: true }), 0, 0.42, 0);
+  const gold = mesh(G.pumpkin(0.6), surface('#ffcf33', { emissive: '#b8860b', emissiveIntensity: 0.35, ...(isPBR() ? { metalness: 0.7, roughness: 0.25 } : {}) }), 0, 0.42, 0);
   decor.goldpumpkin.add(gold, mesh(G.cyl(0.06, 0.09, 0.25, 6), mat('#5d4025'), 0, 0.92, 0));
   decor.goldpumpkin.position.set(0.6, -0.14, hz + 0.85);
   decor.goldpumpkin.scale.setScalar(0.8);
@@ -1203,7 +1211,7 @@ export function createFarm3D(canvas, api) {
   scene.add(snow);
 
   // Seasonal recolouring of shared materials
-  const SEASONAL_EXTRA = [{ m: ground.material, base: new THREE.Color('#7cb342'), kind: 'ground' }];
+  const SEASONAL_EXTRA = [{ m: ground.material, base: new THREE.Color('#6a9e3a'), kind: 'ground' }];
   const SEASONAL = [
     ['#4f9a35', 'canopy'], ['#63b043', 'canopy2'], ['#4e8f2f', 'bush'], ['#2f7a3b', 'pine'], ['#358a43', 'pine'], ['#3d9a4c', 'pine'],
     ['#7cb342', 'ground'], ['#5d8f2f', 'ground'], ['#8bc34a', 'grass'], ['#6a9c3c', 'grass'], ['#79ab45', 'grass'], ['#6fae3a', 'grass']
@@ -1232,14 +1240,15 @@ export function createFarm3D(canvas, api) {
   const ridgeGeo = G.box(0.88, 0.06, 0.15);
   const ringGeo = G.ring(0.36, 0.46);
   const ringMat = new THREE.MeshBasicMaterial({ color: '#ffd54f', transparent: true, opacity: 0.8, depthWrite: false });
-  const goldMat = new THREE.MeshLambertMaterial({ color: '#ffd54f', emissive: '#b8860b', emissiveIntensity: 0.5, flatShading: true });
+  const goldMat = surface('#ffd54f', { emissive: '#b8860b', emissiveIntensity: 0.5, ...(isPBR() ? { metalness: 0.7, roughness: 0.25 } : {}) });
   const BASES = {
-    grass: mat('#8bc34a'),
-    soil: mat('#8d5a3b'),
-    wet: mat('#5e3822'),
-    locked: mat('#6a9c3c'),
-    buyable: mat('#79ab45')
+    grass: mat('#7fb446', { tex: 'grass' }),
+    soil: mat('#8d5a3b', { tex: 'soil', bump: 1.2 }),
+    wet: mat('#5e3822', { tex: 'soil', bump: 0.8, roughness: 0.45 }),
+    locked: mat('#6a9c3c', { tex: 'grass' }),
+    buyable: mat('#79ab45', { tex: 'grass' })
   };
+  ['grass', 'locked', 'buyable'].forEach(k => SEASONAL_EXTRA.push({ m: BASES[k], base: BASES[k].color.clone(), kind: 'grass' }));
 
   const tiles = [];
   for (let i = 0; i < cols * rows; i++) {
@@ -1547,6 +1556,7 @@ export function createFarm3D(canvas, api) {
     viewW = rect.width;
     viewH = rect.height;
     renderer.setSize(viewW, viewH, false);
+    if (post) post.setSize(viewW, viewH);
     updateCamera();
   }
 
@@ -1593,7 +1603,17 @@ export function createFarm3D(canvas, api) {
       hemi.intensity = 0.45;
       hemi.color.set(halloween ? '#625a8a' : '#56658f');
     }
-    windowMat.emissiveIntensity = night || h > 19.5 ? 1.1 : 0;
+    windowMat.emissiveIntensity = night || h > 19.5 ? (post ? 2.2 : 1.1) : 0;
+    // Image-based light from a physically scattered sky; direct lights are
+    // toned down so the sky does most of the ambient work.
+    const sunElev = h >= 5.5 && h <= 20.5 ? elev * 1.05 - 0.04 : -0.3;
+    skyLight.update(sunElev, Math.PI * (0.5 + p), weather, performance.now());
+    if (isPBR()) {
+      scene.environmentIntensity = night ? 0.3 : (0.28 + 0.32 * elev) * (0.6 + 0.4 * dim);
+      hemi.intensity *= night ? 1.6 : 0.4;
+      sun.intensity *= night ? 1.2 : 1.3;
+    }
+    if (post) post.setMood(night || h > 19.5 || h < 6, weather === 'rain' || weather === 'snow');
     rain.visible = weather === 'rain';
     snow.visible = weather === 'snow';
     return { night, halloween, dusk: h >= 18 || h < 6.5 };
@@ -1780,7 +1800,8 @@ export function createFarm3D(canvas, api) {
     meadow.flowers.visible = season !== 3;
     bursts.update(dt);
 
-    renderer.render(scene, camera);
+    if (post) post.render();
+    else renderer.render(scene, camera);
     raf = requestAnimationFrame(frame);
   }
 
@@ -1916,6 +1937,7 @@ export function createFarm3D(canvas, api) {
     setActive,
     burst,
     fps: () => fpsValue,
+    debug: { scene, renderer, post, sun, hemi },
     pulse: i => {
       tiles[i].pulse = 1;
     }
