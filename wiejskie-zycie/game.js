@@ -332,6 +332,107 @@ function pulseTile(i) {
   el.classList.add('pop');
 }
 
+function burstTile(i, kind, crop) {
+  if (farm3d) farm3d.burst(i, kind, crop);
+}
+
+// Small icons that fly from a point on screen to a HUD element.
+function flyTo(x, y, text, target, n = 1) {
+  if (!target) return;
+  const r = target.getBoundingClientRect();
+  const tx = r.left + r.width / 2;
+  const ty = r.top + r.height / 2;
+  for (let k = 0; k < n; k++) {
+    const el = document.createElement('span');
+    el.className = 'fly';
+    el.textContent = text;
+    el.style.left = `${x + (Math.random() - 0.5) * 24}px`;
+    el.style.top = `${y + (Math.random() - 0.5) * 16}px`;
+    $('fx').appendChild(el);
+    setTimeout(() => {
+      el.style.transform = `translate(${tx - x}px, ${ty - y}px) scale(.45)`;
+      el.style.opacity = '0.2';
+    }, 30 + k * 70);
+    setTimeout(() => {
+      el.remove();
+      target.classList.remove('bump');
+      void target.offsetWidth;
+      target.classList.add('bump');
+    }, 720 + k * 70);
+  }
+}
+
+function flyFromTile(i, text, target, n = 1) {
+  if (activeView !== 'farm') return;
+  const p = tilePoint(i);
+  flyTo(p.x, p.y, text, target, n);
+}
+
+function flyFromEl(el, text, target, n = 3) {
+  if (!el || !el.isConnected) return;
+  const r = el.getBoundingClientRect();
+  flyTo(r.left + r.width / 2, r.top + r.height / 2, text, target, n);
+}
+
+const coinTarget = () => document.querySelector('.hud-coins');
+const barnTarget = () => document.querySelector('.tabs [data-tab="barn"]');
+
+function confetti(duration = 2200) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti';
+  canvas.width = innerWidth * Math.min(2, devicePixelRatio || 1);
+  canvas.height = innerHeight * Math.min(2, devicePixelRatio || 1);
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const scale = canvas.width / innerWidth;
+  const colors = ['#ffd54f', '#ff7043', '#66bb6a', '#42a5f5', '#ab47bc', '#ffffff', '#ec407a'];
+  const pieces = Array.from({ length: 140 }, () => ({
+    x: innerWidth / 2 + (Math.random() - 0.5) * 80,
+    y: innerHeight * 0.35,
+    vx: (Math.random() - 0.5) * 14,
+    vy: -8 - Math.random() * 10,
+    r: Math.random() * 6,
+    vr: (Math.random() - 0.5) * 0.4,
+    w: 6 + Math.random() * 6,
+    h: 4 + Math.random() * 4,
+    c: colors[Math.floor(Math.random() * colors.length)]
+  }));
+  const start = performance.now();
+  const step = now => {
+    const t = now - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.vy += 0.35;
+      p.vx *= 0.99;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.r += p.vr;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - t / duration);
+      ctx.translate(p.x * scale, p.y * scale);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.c;
+      ctx.fillRect((-p.w / 2) * scale, (-p.h / 2) * scale, p.w * scale, p.h * scale);
+      ctx.restore();
+    });
+    if (t < duration) requestAnimationFrame(step);
+    else canvas.remove();
+  };
+  requestAnimationFrame(step);
+}
+
+let shownCoins = null;
+let coinAnim = 0;
+
+function animateCoins() {
+  const target = state.coins;
+  if (shownCoins === null || Math.abs(target - shownCoins) > 100000) shownCoins = target;
+  const diff = target - shownCoins;
+  shownCoins += Math.abs(diff) < 1 ? diff : Math.sign(diff) * Math.max(1, Math.round(Math.abs(diff) * 0.18));
+  $('coins').textContent = Math.round(shownCoins).toLocaleString('pl-PL');
+  coinAnim = shownCoins !== target ? requestAnimationFrame(animateCoins) : 0;
+}
+
 function bumpCoins() {
   const el = document.querySelector('.hud-coins');
   el.classList.remove('bump');
@@ -470,6 +571,7 @@ function unlocksAt(level) {
 
 function onLevelUp(level) {
   sfx('level');
+  confetti();
   buzz(30);
   const bonus = 20 * level;
   addCoins(bonus);
@@ -665,6 +767,7 @@ function askBuyTile(i) {
           state.tiles[i] = { s: 'grass' };
           grant(loot);
           bump('cleared');
+          burstTile(i, 'buy');
           addXp(2);
           sfx('plow');
           renderAll();
@@ -757,6 +860,8 @@ function harvestTile(i, quiet = false) {
   if (!quiet) {
     floatAtTile(i, `+${amount} ${ITEMS[t.crop].icon}${lucky ? ' ✨' : ''}`, '', 8);
     floatAtTile(i, `+${xp} ⭐`, 'xp', -12);
+    burstTile(i, t.g ? 'gold' : 'harvest', t.crop);
+    flyFromTile(i, ITEMS[t.crop].icon, barnTarget(), Math.min(3, amount));
   }
   if (t.g) {
     addGold(1);
@@ -785,10 +890,12 @@ function doAction(i, action) {
       addXp(1);
       bump('crows');
       floatAtTile(i, '🐦 Sio! +2 🪙');
+      burstTile(i, 'scare');
       sfx('crow');
       break;
     case 'plow':
       state.tiles[i] = { s: 'soil' };
+      burstTile(i, 'plow');
       sfx('plow');
       break;
     case 'plant': {
@@ -807,6 +914,7 @@ function doAction(i, action) {
       plantTile(i, state.seed);
       floatAtTile(i, `-${crop.cost} 🪙`, 'minus');
       if (state.tiles[i].g) floatAtTile(i, '✨ złota sadzonka!', 'gold', 26);
+      burstTile(i, state.tiles[i].g ? 'gold' : 'plant');
       sfx('plant');
       break;
     }
@@ -817,6 +925,7 @@ function doAction(i, action) {
         if (tj.s === 'crop' && !tj.w && !cropReady(tj)) {
           tj.w = true;
           n++;
+          burstTile(j, 'water');
           if (j !== i) pulseTile(j);
         }
       });
@@ -840,6 +949,8 @@ function doAction(i, action) {
       addCoins(2);
       addXp(1);
       floatAtTile(i, '+2 🪙');
+      burstTile(i, 'weed');
+      flyFromTile(i, '🪙', coinTarget());
       sfx('plow');
       break;
     default:
@@ -884,6 +995,7 @@ function plantTree(i) {
   pay(tr.cost);
   state.tiles[i] = { s: 'tree', tree: id, p: 0, T: tr.grow * 1000 };
   bump('trees');
+  burstTile(i, 'plant');
   floatAtTile(i, `🌳 ${tr.name}!`, '', 10);
   sfx('plant');
   return true;
@@ -902,6 +1014,7 @@ function placeHeater(i) {
   pay(HEATER.cost);
   state.tiles[i] = { s: 'heater' };
   bump('heaters');
+  burstTile(i, 'buy');
   computeHeated();
   sfx('build');
   toast(isWinter() ? '🔥 Grzejnik grzeje sąsiednie grządki (pali drewno 🪵).' : '🔥 Grzejnik zacznie grzać zimą — pali drewno 🪵.');
@@ -923,6 +1036,8 @@ function harvestTree(i, quiet = false) {
   t.fruited = true;
   if (!quiet) {
     floatAtTile(i, `+${n} ${tr.icon}${bees ? ' 🐝' : ''}${lucky ? ' ✨' : ''}`, '', 8);
+    burstTile(i, 'fruit', t.tree);
+    flyFromTile(i, tr.icon, barnTarget(), 3);
     floatAtTile(i, `+${xp} ⭐`, 'xp', -12);
   }
   return t.tree;
@@ -1330,6 +1445,7 @@ function deliverOrder(idx, el) {
   bump('orders');
   state.orders[idx] = { wait: 15000, total: 15000 };
   floatAt(el, `+${order.coins} 🪙`, '', 10);
+  flyFromEl(el, '🪙', coinTarget(), 6);
   floatAt(el, `+${xp} ⭐`, 'xp', -14);
   if (order.pts) floatAt(el, `+${order.pts} 👻`, 'spooky', 36);
   if (order.nails) floatAt(el, `+${order.nails} 🔩`, '', 36);
@@ -1383,6 +1499,7 @@ function sellItem(id, n, el) {
   addCoins(gain);
   bump('sold', qty);
   floatAt(el, `+${gain} 🪙`);
+  flyFromEl(el, '🪙', coinTarget(), Math.min(6, 2 + qty));
   sfx('coin');
   save();
 }
@@ -1619,6 +1736,7 @@ function donate(id, key) {
   sfx('coin');
   if (Object.entries(p.needs).every(([k, n]) => (ps.donated[k] || 0) >= n)) {
     ps.done = true;
+    confetti();
     addGold(p.gold);
     bump('projects');
     addXp(10 * p.level);
@@ -1931,6 +2049,7 @@ function claimAchievement(id) {
   const reward = ACHIEVEMENT_REWARDS[info.claimed];
   grant(reward);
   state.ach[id] = info.claimed + 1;
+  confetti(1600);
   sfx('golden');
   showModal({
     hero: ['🥉', '🥈', '🥇'][info.claimed],
@@ -2113,7 +2232,7 @@ function weatherIcon() {
 }
 
 function renderHud() {
-  $('coins').textContent = state.coins.toLocaleString('pl-PL');
+  if (!coinAnim) coinAnim = requestAnimationFrame(animateCoins);
   $('gold').textContent = state.gold;
   $('level').textContent = state.level;
   $('xpFill').style.width = `${Math.min(100, (state.xp / xpNeeded(state.level)) * 100)}%`;
@@ -3089,7 +3208,7 @@ function showMenu() {
       </ul>
       <div class="toggle-row"><span>🔊 Dźwięki</span><button class="btn small ${state.sound ? '' : 'ghost'}" id="soundToggle" type="button">${state.sound ? 'Włączone' : 'Wyłączone'}</button></div>
       <div class="toggle-row"><span>🎵 Muzyka</span><button class="btn small ${state.music ? '' : 'ghost'}" id="musicToggle" type="button">${state.music ? 'Włączona' : 'Wyłączona'}</button></div>
-      <div class="toggle-row"><span>🎨 Grafika</span><button class="btn small" id="gfxToggle" type="button">${state.gfx === '2d' ? 'Klasyczna 2D' : 'Pełne 3D'}</button></div>
+      <div class="toggle-row"><span>🎨 Grafika</span><button class="btn small" id="gfxToggle" type="button">${{ '2d': 'Klasyczna 2D', '3d-low': '3D oszczędne', '3d': '3D pełne' }[state.gfx] || '3D pełne'}</button></div>
       <div class="toggle-row"><span>🏷️ Nazwa</span><button class="btn small ghost" id="renameBtn" type="button">Zmień</button></div>`,
     buttons: [
       { label: '💾 Kopia zapasowa', cls: 'ghost', onClick: showBackup },
@@ -3113,7 +3232,7 @@ function showMenu() {
         save();
       });
       card.querySelector('#gfxToggle').addEventListener('click', () => {
-        state.gfx = state.gfx === '2d' ? '3d' : '2d';
+        state.gfx = { '3d': '3d-low', '3d-low': '2d', '2d': '3d' }[state.gfx] || '3d';
         save();
         location.reload();
       });
@@ -3623,7 +3742,30 @@ function tick() {
   }
   lastClaimables = claimables;
   updateOwl(dt);
+  checkPerformance(dt);
   renderAll();
+}
+
+let perfWatch = 0;
+
+// Offers the lighter 3D mode once if the phone struggles with full graphics.
+function checkPerformance(dt) {
+  if (!farm3d || state.gfx !== '3d' || state.perfAsked || activeView !== 'farm' || document.hidden || modalOpen) return;
+  perfWatch += dt;
+  if (perfWatch < 8000) return;
+  perfWatch = 0;
+  if (farm3d.fps() >= 24) return;
+  state.perfAsked = true;
+  save();
+  showModal({
+    hero: '🐢',
+    title: 'Gra działa wolno?',
+    body: '<p>Ten telefon ma trudność z pełną grafiką 3D. Tryb <b>3D oszczędne</b> wyłącza cienie i część ozdób, żeby gra działała płynnie.</p><p class="meta">Zawsze możesz to zmienić w ⚙️ Ustawienia → Grafika.</p>',
+    buttons: [
+      { label: 'Przełącz na 3D oszczędne', cls: 'gold', onClick: () => { state.gfx = '3d-low'; save(); location.reload(); } },
+      { label: 'Zostaw pełne 3D', cls: 'ghost' }
+    ]
+  });
 }
 
 function welcomeBack() {
@@ -3652,6 +3794,7 @@ function initGraphics() {
         cols: COLS,
         rows: ROWS,
         tile: tileInfo,
+        quality: () => (state.gfx === '3d-low' ? 'low' : 'high'),
         hour: hourOfDay,
         weather: () => state.weather,
         season: seasonIndex,
@@ -3696,6 +3839,13 @@ function init() {
   fitField();
   renderAll();
   if (farm3d) farm3d.setActive(!document.hidden);
+  setTimeout(() => {
+    const splash = $('splash');
+    if (splash) {
+      splash.classList.add('gone');
+      setTimeout(() => splash.remove(), 700);
+    }
+  }, 1100);
   lastTick = Date.now();
   setInterval(tick, 250);
 

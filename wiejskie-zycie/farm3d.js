@@ -1,4 +1,8 @@
 import * as THREE from './vendor/three.module.min.js';
+import {
+  createTerrain, createForest, createMeadow, createWater, createDucks, createButterflies, createFireflies,
+  createLeaves, createBirds, createSmoke, createLamp, createHayBale, createLogPile, createCart, createBursts, makeBlocker
+} from './scenery.js';
 
 // Low-poly 3D farm drawn with Three.js. The game logic lives in game.js;
 // this module only reads the state through the `api` callbacks and renders it.
@@ -802,10 +806,14 @@ function gabledBuilding({ w, h, d, roofH, wall, roof }) {
 /* ---------- Scene ---------- */
 
 export function createFarm3D(canvas, api) {
+  const quality = api.quality ? api.quality() : 'high';
+  const high = quality !== 'low';
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, high ? 2 : 1.25));
+  renderer.shadowMap.enabled = high;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.12;
 
   const { cols, rows } = api;
   const scene = new THREE.Scene();
@@ -829,7 +837,7 @@ export function createFarm3D(canvas, api) {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight('#fff4e0', 2.4);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(high ? 1024 : 512, high ? 1024 : 512);
   Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 50 });
   sun.shadow.bias = -0.0008;
   sun.shadow.normalBias = 0.02;
@@ -842,10 +850,7 @@ export function createFarm3D(canvas, api) {
   const hz = (rows * STEP) / 2 + 0.14;
 
   // Ground & surroundings
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 40), mat('#7cb342'));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.14;
-  ground.receiveShadow = true;
+  const ground = createTerrain();
   scene.add(ground);
 
   const bed = mesh(G.box(cols * STEP + 0.4, 0.04, rows * STEP + 0.4), mat('#5d8f2f'), 0, -0.13, 0, false);
@@ -953,20 +958,9 @@ export function createFarm3D(canvas, api) {
     t.position.set(x, -0.14, z);
     scene.add(t);
   });
-  const flowerColors = ['#ff6f91', '#ffd54f', '#ffffff', '#b388ff'];
-  for (let k = 0; k < 40; k++) {
-    const x = (rnd() - 0.5) * 16;
-    const z = hz + 0.6 + rnd() * 4.5;
-    if (Math.abs(x) < 3.6 && z < hz + 2.6) continue;
-    scene.add(mesh(G.sphere(0.05, 5, 4), mat(flowerColors[k % 4]), x, -0.08, z, false));
-  }
   const POND = { x: 2.6, z: hz + 1.7, rx: 1.3, rz: 0.75 };
-  const pond = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshLambertMaterial({ color: '#4fa3d9' }));
-  pond.rotation.x = -Math.PI / 2;
-  pond.position.set(POND.x, -0.11, POND.z);
-  pond.scale.set(POND.rx, POND.rz, 1);
-  pond.receiveShadow = true;
-  scene.add(pond);
+  const water = createWater(POND);
+  scene.add(water.mesh);
   const shore = new THREE.Mesh(new THREE.CircleGeometry(1, 20), mat('#c9b37a'));
   shore.rotation.x = -Math.PI / 2;
   shore.position.set(POND.x, -0.125, POND.z);
@@ -1113,6 +1107,76 @@ export function createFarm3D(canvas, api) {
   const warmMat = new THREE.MeshBasicMaterial({ color: '#ff9a3c', transparent: true, opacity: 0.22, depthWrite: false });
   const warmGeo = new THREE.CircleGeometry(0.5, 20);
 
+  /* ---------- Scenery & ambient life ---------- */
+
+  const blocked = makeBlocker([
+    [-hx - 0.5, -hz - 0.5, hx + 0.5, hz + 0.5],
+    [PEN.x0 - 0.3, PEN.z0 - 0.3, PEN.x1 + 0.3, PEN.z1 + 0.3],
+    [1.1, -7.5, 3.5, -5.3], [-6.6, -7.2, -4.2, -5.0], [4.9, -7.8, 6.3, -6.3], [0.7, -5.1, 4.4, -4.3],
+    [-6.1, -4.6, -4.5, -3.6], [-7.4, -1.6, -5.4, 0.4], [5.3, -0.6, 7.3, 1.4], [-7.4, 2.8, -5.8, 4.4],
+    [5.9, 2.6, 7.5, 4.2], [5.8, -4.2, 7.4, -2.6], [-5.5, hz + 0.5, -4.1, hz + 1.7], [-2.4, hz + 1.8, -1.4, hz + 2.8],
+    [-3.9, hz + 1.7, -2.9, hz + 2.7], [-3.4, hz + 0.3, 1.2, hz + 1.3], [3.9, hz + 0.8, 5.6, hz + 2.4]
+  ], [[POND.x, POND.z, POND.rx + 0.3, POND.rz + 0.3]]);
+  scene.add(createForest([mat('#2f7a3b'), mat('#358a43'), mat('#3d9a4c')], mat('#6b4423'), quality));
+  const meadow = createMeadow(mat('#6fae3a'), blocked, quality);
+  scene.add(meadow.grass, meadow.flowers);
+  const ducks = createDucks(POND);
+  scene.add(ducks.group);
+  const butterflies = createButterflies(blocked);
+  const fireflies = createFireflies(blocked);
+  const leaves = createLeaves();
+  const birds = createBirds();
+  if (high) scene.add(butterflies.group, fireflies.points, leaves.group, birds.group);
+  house.updateMatrixWorld(true);
+  const smoke = createSmoke(house.localToWorld(new THREE.Vector3(-0.5, 1.9, -0.2)));
+  scene.add(smoke.group);
+  const lamps = [[house.position.x + 1.7, house.position.z + 0.7], [0.8, -hz - 1.9], [0.9, hz + 2.6]].map(([x, z]) => {
+    const lamp = createLamp();
+    lamp.group.position.set(x, -0.14, z);
+    scene.add(lamp.group);
+    return lamp;
+  });
+  [[4.1, -5.6, 0.3], [4.6, -6.2, 1.2], [4.0, -6.4, 2.0]].forEach(([x, z, r]) => {
+    const bale = createHayBale();
+    bale.position.set(x, -0.14, z);
+    bale.rotation.y = r;
+    scene.add(bale);
+  });
+  const logs = createLogPile();
+  logs.position.set(-6.9, -0.14, -5.5);
+  logs.rotation.y = 0.4;
+  scene.add(logs);
+  const cart = createCart();
+  cart.position.set(0.9, -0.14, -8.4);
+  cart.rotation.y = 0.5;
+  scene.add(cart);
+  const bursts = createBursts(quality);
+  scene.add(bursts.mesh);
+  const CROP_COLORS = {
+    wheat: ['#f2c94c', '#cfae4e'], carrot: ['#ff8a1f', '#4caf50'], potato: ['#b5835a', '#5d9b3a'], corn: ['#f7d046', '#6aa84f'],
+    tomato: ['#e53935', '#4f8f32'], sunflower: ['#ffcc1a', '#6d4c25'], strawberry: ['#e8283a', '#4caf50'], pumpkin: ['#ff8c1a', '#4f8f32'],
+    cabbage: ['#b5d98a', '#6fa83c'], cucumber: ['#2e7d32', '#8bc34a'], apple: ['#e53935', '#5aa83e'], cherry: ['#a3141c', '#4e9a3a'],
+    pear: ['#cddc39', '#6aae48'], peach: ['#ffab73', '#7cb342']
+  };
+  const BURSTS = {
+    plow: { colors: ['#8d5a3b', '#6d4128', '#a87452'], count: 14, up: 1.8 },
+    plant: { colors: ['#8d5a3b', '#7cc242'], count: 8, up: 1.4, size: 0.7 },
+    water: { colors: ['#64b5f6', '#bbdefb', '#2196f3'], count: 14, up: 1.6, spread: 1 },
+    weed: { colors: ['#3b6e22', '#6fae3a'], count: 12 },
+    scare: { colors: ['#1f1d24', '#3a3740'], count: 14, up: 3 },
+    gold: { colors: ['#ffd54f', '#fff59d', '#ffb300'], count: 30, up: 3.2, spread: 2 },
+    buy: { colors: ['#7a5230', '#a8743f', '#9e9e9e', '#6fae3a'], count: 24, up: 2.6, spread: 2 }
+  };
+  function burst(i, kind, crop) {
+    const origin = new THREE.Vector3(tileX(i % cols), 0.3, tileZ(Math.floor(i / cols)));
+    if (kind === 'harvest' || kind === 'fruit') {
+      bursts.emit(origin.setY(kind === 'fruit' ? 0.8 : 0.35), [...(CROP_COLORS[crop] || ['#8bc34a']), '#fff59d'], 18);
+      return;
+    }
+    const def = BURSTS[kind];
+    if (def) bursts.emit(origin, def.colors, def.count, def);
+  }
+
   // Helpers and the dog
   const jozek = personModel({ shirt: '#4a7bd0', hat: 'straw' });
   const basia = personModel({ shirt: '#c2185b', hat: 'scarf' });
@@ -1139,6 +1203,7 @@ export function createFarm3D(canvas, api) {
   scene.add(snow);
 
   // Seasonal recolouring of shared materials
+  const SEASONAL_EXTRA = [{ m: ground.material, base: new THREE.Color('#7cb342'), kind: 'ground' }];
   const SEASONAL = [
     ['#4f9a35', 'canopy'], ['#63b043', 'canopy2'], ['#4e8f2f', 'bush'], ['#2f7a3b', 'pine'], ['#358a43', 'pine'], ['#3d9a4c', 'pine'],
     ['#7cb342', 'ground'], ['#5d8f2f', 'ground'], ['#8bc34a', 'grass'], ['#6a9c3c', 'grass'], ['#79ab45', 'grass'], ['#6fae3a', 'grass']
@@ -1153,7 +1218,7 @@ export function createFarm3D(canvas, api) {
   const tint = new THREE.Color();
   function applySeason(season) {
     seasonShown = season;
-    SEASONAL.forEach(({ m, base, kind }) => {
+    [...SEASONAL, ...SEASONAL_EXTRA].forEach(({ m, base, kind }) => {
       const t = TINTS[season][kind];
       m.color.copy(base);
       if (t) m.color.lerp(tint.set(t[0]), t[1]);
@@ -1523,10 +1588,10 @@ export function createFarm3D(canvas, api) {
       hemi.color.set('#dff1ff');
     } else {
       sun.position.set(-6, 14, 4);
-      sun.color.set(halloween ? '#b49cff' : '#9fb4ff');
+      sun.color.set(halloween ? '#a9a2e0' : '#9fb4ff');
       sun.intensity = 0.6 * dim;
       hemi.intensity = 0.45;
-      hemi.color.set(halloween ? '#7a5aa8' : '#5b6fa8');
+      hemi.color.set(halloween ? '#625a8a' : '#56658f');
     }
     windowMat.emissiveIntensity = night || h > 19.5 ? 1.1 : 0;
     rain.visible = weather === 'rain';
@@ -1538,13 +1603,26 @@ export function createFarm3D(canvas, api) {
 
   let running = false;
   let last = performance.now();
+  let fpsFrames = 0;
+  let fpsTime = 0;
+  let fpsValue = 60;
   let raf = 0;
 
   function frame(now) {
     raf = 0;
     if (!running) return;
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const rawDt = (now - last) / 1000;
+    const dt = Math.min(0.1, rawDt);
     last = now;
+    if (rawDt < 0.5) {
+      fpsFrames++;
+      fpsTime += rawDt;
+      if (fpsTime >= 2) {
+        fpsValue = fpsFrames / fpsTime;
+        fpsFrames = 0;
+        fpsTime = 0;
+      }
+    }
     const time = now / 1000;
 
     if (coasting && !panVel.equals(new THREE.Vector2())) {
@@ -1563,6 +1641,7 @@ export function createFarm3D(canvas, api) {
     const env = updateLighting();
 
     ringMat.opacity = 0.45 + Math.sin(time * 4) * 0.3;
+    const wet = api.weather() === 'rain' || api.weather() === 'snow';
     for (let i = 0; i < tiles.length; i++) {
       const info = api.tile(i);
       info.stage = info.s === 'crop' ? (info.ready ? 2 : info.f < 0.3 ? 0 : 1) : -1;
@@ -1589,6 +1668,7 @@ export function createFarm3D(canvas, api) {
       } else if (t.content && info.s !== 'locked') {
         t.content.scale.set(s, s, s);
         t.content.position.y = lift;
+        if (info.s === 'crop') t.content.rotation.z = Math.sin(time * 1.7 + i * 0.9) * (wet ? 0.07 : 0.035);
       }
       if (t.heater && info.active) {
         t.heater.userData.puffs.forEach(pf => {
@@ -1685,6 +1765,20 @@ export function createFarm3D(canvas, api) {
       decor.ghost.rotation.y = -ang;
     }
     if (decor.goldpumpkin.visible) decor.goldpumpkin.rotation.y = Math.sin(time * 0.4) * 0.15;
+
+    const season = api.season();
+    const hour = api.hour();
+    const daylight = hour >= 7 && hour < 19;
+    water.update(time, Math.min(1.1, Math.max(0.35, hemi.intensity * 0.85)));
+    ducks.update(time);
+    butterflies.update(time, daylight && !wet && season !== 3);
+    fireflies.update(time, env.night && season !== 3 && !wet);
+    leaves.update(dt, time, season === 2 && !env.night);
+    birds.update(dt, time, daylight && !wet);
+    smoke.update(time, season === 3 ? 1 : 0.6);
+    lamps.forEach(l => l.set(env.dusk));
+    meadow.flowers.visible = season !== 3;
+    bursts.update(dt);
 
     renderer.render(scene, camera);
     raf = requestAnimationFrame(frame);
@@ -1820,6 +1914,8 @@ export function createFarm3D(canvas, api) {
     },
     resize,
     setActive,
+    burst,
+    fps: () => fpsValue,
     pulse: i => {
       tiles[i].pulse = 1;
     }
