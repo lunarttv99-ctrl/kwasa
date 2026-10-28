@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wiejskie-zycie-v4';
+const CACHE_NAME = 'wiejskie-zycie-v5';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const FILES_TO_CACHE = [
   './data.js',
   './music.js',
   './agent.js',
+  './scenery.js',
   './vendor/three.module.min.js',
   './fonts/fredoka-latin.woff2',
   './fonts/fredoka-latin-ext.woff2',

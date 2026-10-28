@@ -2,6 +2,17 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## 🎨 Wersja 5 — wielka aktualizacja wizualna
+
+- **Krajobraz:** pagórkowaty teren z cieniowaniem, pas lasu dookoła, łąki pełne trawy i kwiatów.
+- **Staw z animowaną wodą** (zmarszczki, odblaski) i pływającymi kaczkami.
+- **Życie na wsi:** motyle za dnia, świetliki nocą, jesienne liście, klucz ptaków, dym z komina, latarnie świecące po zmroku.
+- **Rekwizyty:** bele siana, wóz z dyniami, stos drewna.
+- **Rośliny falują na wietrze**, a zbiory, oranie, podlewanie i karczowanie sypią kolorowymi drobinkami.
+- **Lepsze kolory i światło** (tone mapping), łagodniejsza noc.
+- **Interfejs:** ekran powitalny, monety i plony lecące do liczników, animowany licznik monet, konfetti przy awansie, odświeżone paski, przyciski, karty, okna i pasek nasion.
+- **Jakość grafiki** (⚙️ → Grafika): 3D pełne / 3D oszczędne / klasyczne 2D. Gdy telefon nie nadąża, gra sama zaproponuje tryb oszczędny.
+
 ## 🦉 Sowa Mądralińska — wbudowana pomocniczka
 
 Sowa w prawym dolnym rogu pola (albo „Więcej → Sowa Mądralińska”):
@@ -78,6 +89,7 @@ To zwykłe pliki statyczne – nie trzeba niczego budować.
 - `music.js` – generowana muzyka w tle,
 - `agent.js` – Sowa Mądralińska: odpowiedzi na pytania, rady i encyklopedia,
 - `farm3d.js` – scena 3D gospodarstwa,
+- `scenery.js` – krajobraz i życie wokół gospodarstwa (teren, las, łąka, woda, zwierzęta, cząsteczki),
 - `vendor/three.module.min.js` – biblioteka Three.js r169 (licencja MIT, `vendor/three-LICENSE.txt`),
 - `fonts/` – czcionka Fredoka (licencja SIL Open Font License),
 - `manifest.webmanifest`, `sw.js` – instalacja jako aplikacja i tryb offline,
