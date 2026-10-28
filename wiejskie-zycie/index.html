@@ -13,6 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preload" href="fonts/fredoka-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -32,6 +33,11 @@
 
     <main class="views">
       <section class="view view-farm active" id="view-farm">
+        <div class="scene" id="scene">
+          <canvas id="scene3d" aria-label="Gospodarstwo w 3D"></canvas>
+          <button class="scene-btn" id="rotateBtn" type="button" aria-label="Obróć kamerę">⟳</button>
+          <button class="event-pill hidden" id="eventPill" type="button">🎃 Halloween · <b id="eventPillPts">0</b> 👻</button>
+        </div>
         <div class="sky" id="sky">
           <span class="sun" id="sun">☀️</span>
           <span class="cloud c1">☁️</span>
@@ -76,6 +82,10 @@
         <div id="orders"></div>
       </section>
 
+      <section class="view paper spooky-paper" id="view-event">
+        <div id="event"></div>
+      </section>
+
       <section class="view paper" id="view-barn">
         <div class="view-head">
           <h2>🏚️ Stodoła</h2>
@@ -91,6 +101,7 @@
       <button data-tab="kitchen" type="button"><span>🍳</span>Kuchnia<i class="badge" id="badge-kitchen"></i></button>
       <button data-tab="orders" type="button"><span>📋</span>Zamówienia<i class="badge" id="badge-orders"></i></button>
       <button data-tab="barn" type="button"><span>🏚️</span>Stodoła</button>
+      <button class="hidden" id="eventTab" data-tab="event" type="button"><span>🎃</span>Halloween<i class="badge" id="badge-event"></i></button>
     </nav>
   </div>
 
@@ -100,6 +111,6 @@
     <div class="modal-card" id="modalCard"></div>
   </div>
 
-  <script src="game.js"></script>
+  <script type="module" src="game.js"></script>
 </body>
 </html>

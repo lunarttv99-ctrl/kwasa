@@ -2,6 +2,15 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## Nowości w wersji 2
+
+- **Grafika 3D** – pole, uprawy, płot, stodoła, dom, wiatrak i zwierzęta jako trójwymiarowa scena (Three.js) z cieniami, cyklem dnia i nocy, deszczem i przesuwającymi się cieniami chmur. Przycisk ⟳ obraca kamerę. Na słabszych telefonach można przełączyć grafikę na klasyczną 2D (⚙️ → Grafika).
+- **Wydarzenie Halloween** (15 października – 7 listopada) – dynie od 1. poziomu, kociołek czarownicy (cukierki, zupa dyniowa, ciastka-duszki, eliksir), zamówienia od potworów, nietoperze i lampiony nocą, punkty 👻 i nagrody: lampiony, strach na wróble, przyjazny duszek i złota dynia. Każda ozdoba daje stały bonus i zostaje na zawsze.
+- **Codzienna nagroda** z 7-dniową serią.
+- Nowa czcionka Fredoka, dotychczasowe zapisy gry są zachowane.
+
+Wydarzenie można wymusić do testów parametrem `?halloween=1` (lub wyłączyć `?halloween=0`).
+
 ## Rozgrywka
 
 - **🌱 Pole** – oraj trawę, siej nasiona, podlewaj (2× szybszy wzrost) i zbieraj plony. Przeciągnij palcem, by obsłużyć kilka grządek naraz. Karczuj drzewa i kamienie, by powiększyć pole.
@@ -26,5 +35,8 @@ To zwykłe pliki statyczne – nie trzeba niczego budować.
 - `index.html` – układ ekranu,
 - `styles.css` – wygląd,
 - `game.js` – logika gry i zapis (localStorage, klucz `wiejskie_zycie_save_v1`),
+- `farm3d.js` – scena 3D gospodarstwa,
+- `vendor/three.module.min.js` – biblioteka Three.js r169 (licencja MIT, `vendor/three-LICENSE.txt`),
+- `fonts/` – czcionka Fredoka (licencja SIL Open Font License),
 - `manifest.webmanifest`, `sw.js` – instalacja jako aplikacja i tryb offline,
 - `icons/` – ikony aplikacji.
