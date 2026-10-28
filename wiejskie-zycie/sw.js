@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wiejskie-zycie-v5';
+const CACHE_NAME = 'wiejskie-zycie-v6';
 const FILES_TO_CACHE = [
   './',
   './index.html',
@@ -9,6 +9,19 @@ const FILES_TO_CACHE = [
   './music.js',
   './agent.js',
   './scenery.js',
+  './look.js',
+  './vendor/addons/geometries/RoundedBoxGeometry.js',
+  './vendor/addons/objects/Sky.js',
+  './vendor/addons/postprocessing/EffectComposer.js',
+  './vendor/addons/postprocessing/MaskPass.js',
+  './vendor/addons/postprocessing/OutputPass.js',
+  './vendor/addons/postprocessing/Pass.js',
+  './vendor/addons/postprocessing/RenderPass.js',
+  './vendor/addons/postprocessing/ShaderPass.js',
+  './vendor/addons/postprocessing/UnrealBloomPass.js',
+  './vendor/addons/shaders/CopyShader.js',
+  './vendor/addons/shaders/LuminosityHighPassShader.js',
+  './vendor/addons/shaders/OutputShader.js',
   './vendor/three.module.min.js',
   './fonts/fredoka-latin.woff2',
   './fonts/fredoka-latin-ext.woff2',

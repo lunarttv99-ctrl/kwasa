@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three.module.min.js';
+import { surface } from './look.js';
 
 // Scenery and ambient life around the farm: rolling terrain, forest belt,
 // meadow grass and flowers, animated pond, ducks, butterflies, fireflies,
@@ -47,7 +48,7 @@ export function createTerrain() {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  const material = new THREE.MeshLambertMaterial({ color: '#7cb342', vertexColors: true, flatShading: true });
+  const material = surface('#6a9e3a', { vertexColors: true, tex: 'grass', repeat: 48, bump: 0.4 });
   const mesh = new THREE.Mesh(geo, material);
   mesh.position.y = BASE_Y;
   mesh.receiveShadow = true;
@@ -65,9 +66,9 @@ export function createForest(pineMats, trunkMat, quality) {
   const r = rng(99);
   const count = quality === 'low' ? 90 : 170;
   const crowns = [0.62, 0.5, 0.36].map((rad, k) => {
-    return new THREE.InstancedMesh(new THREE.ConeGeometry(rad, 0.8 - k * 0.12, 6), pineMats[k], count);
+    return new THREE.InstancedMesh(new THREE.ConeGeometry(rad, 0.8 - k * 0.12, quality === 'low' ? 7 : 12), pineMats[k], count);
   });
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.12, 0.5, 5), trunkMat, count);
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.12, 0.5, 8), trunkMat, count);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const s = new THREE.Vector3();
@@ -115,7 +116,7 @@ export function createMeadow(grassMat, blocked, quality) {
 
   const flowerColors = ['#ff6f91', '#ffd54f', '#ffffff', '#b388ff', '#ff8a65', '#4fc3f7'].map(c => new THREE.Color(c));
   const flowerCount = quality === 'low' ? 140 : 320;
-  const flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.05, 0), new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true }), flowerCount);
+  const flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.05, 1), surface('#ffffff'), flowerCount);
   placed = 0;
   for (let tries = 0; placed < flowerCount && tries < flowerCount * 8; tries++) {
     const cluster = Math.floor(r() * 14);
@@ -164,15 +165,15 @@ export function createWater(pond) {
   return { mesh, update: (time, light) => { material.uniforms.uTime.value = time; material.uniforms.uLight.value = light; } };
 }
 
-const lambert = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
+const lambert = color => surface(color);
 
 export function createDucks(pond) {
   const group = new THREE.Group();
   const ducks = [0, 1].map(k => {
     const d = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), lambert(k ? '#8d6e4a' : '#f5f5f0'));
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), lambert(k ? '#8d6e4a' : '#f5f5f0'));
     body.scale.set(0.9, 0.7, 1.3);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), lambert(k ? '#6d4c2f' : '#2e7d32'));
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.065, 16, 12), lambert(k ? '#6d4c2f' : '#2e7d32'));
     head.position.set(0, 0.11, 0.11);
     const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.07, 4), lambert('#ff9800'));
     beak.rotation.x = Math.PI / 2;
@@ -356,7 +357,7 @@ export function createBirds() {
 export function createSmoke(origin) {
   const group = new THREE.Group();
   const puffs = Array.from({ length: 7 }, (_, k) => {
-    const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 0), new THREE.MeshLambertMaterial({ color: '#e8e8e8', transparent: true, opacity: 0.6, depthWrite: false, flatShading: true }));
+    const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 2), surface('#e8e8e8', { transparent: true, opacity: 0.6, depthWrite: false }));
     puff.userData.seed = k / 7;
     group.add(puff);
     return puff;
@@ -380,7 +381,7 @@ export function createLamp() {
   const iron = lambert('#3a3a44');
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 1.3, 6), iron);
   pole.position.y = 0.65;
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18), new THREE.MeshLambertMaterial({ color: '#4a4a52', emissive: '#ffcf6a', emissiveIntensity: 0 }));
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18), surface('#4a4a52', { emissive: '#ffcf6a', emissiveIntensity: 0 }));
   head.position.y = 1.38;
   const cap = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.14, 4), iron);
   cap.position.y = 1.55;
@@ -401,12 +402,12 @@ export function createLamp() {
 
 export function createHayBale() {
   const g = new THREE.Group();
-  const bale = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.5, 12), lambert('#e3c16f'));
+  const bale = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.5, 20), lambert('#e3c16f'));
   bale.rotation.z = Math.PI / 2;
   bale.position.y = 0.32;
   bale.castShadow = true;
   [-0.25, 0.25].forEach(x => {
-    const end = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 12), lambert('#f0d48a'));
+    const end = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 20), lambert('#f0d48a'));
     end.rotation.z = Math.PI / 2;
     end.position.set(x + Math.sign(x) * 0.005, 0.32, 0);
     g.add(end);
@@ -420,11 +421,11 @@ export function createLogPile() {
   const bark = lambert('#7a5230');
   const cut = lambert('#d9b27c');
   [[0, 0.1, 0], [0.22, 0.1, 0], [-0.22, 0.1, 0], [0.11, 0.29, 0], [-0.11, 0.29, 0], [0, 0.47, 0]].forEach(([x, y, z]) => {
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 7), bark);
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 14), bark);
     log.rotation.x = Math.PI / 2;
     log.position.set(x, y, z);
     log.castShadow = true;
-    const end = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 7), cut);
+    const end = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 14), cut);
     end.rotation.x = Math.PI / 2;
     end.position.set(x, y, 0.41);
     g.add(log, end);
@@ -445,7 +446,7 @@ export function createCart() {
     g.add(side);
   });
   [[-0.3, 0.34], [-0.3, -0.34], [0.3, 0.34], [0.3, -0.34]].forEach(([x, z]) => {
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 10), lambert('#5d3a1a'));
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 18), lambert('#5d3a1a'));
     wheel.rotation.x = Math.PI / 2;
     wheel.position.set(x, 0.2, z);
     g.add(wheel);
@@ -455,7 +456,7 @@ export function createCart() {
   handle.rotation.z = -0.25;
   g.add(handle);
   [[0.1, 0.55, 0.05, '#ff8c1a'], [-0.2, 0.55, -0.1, '#ff8c1a'], [-0.05, 0.6, 0.12, '#e53935']].forEach(([x, y, z, c]) => {
-    const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), lambert(c));
+    const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), lambert(c));
     fruit.position.set(x, y, z);
     fruit.scale.y = 0.8;
     g.add(fruit);
@@ -466,7 +467,7 @@ export function createCart() {
 // Particle bursts (harvest confetti, soil, water drops, gold sparkles)
 export function createBursts(quality) {
   const max = quality === 'low' ? 80 : 220;
-  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true }), max);
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), surface('#ffffff'), max);
   mesh.frustumCulled = false;
   const parts = Array.from({ length: max }, () => ({ life: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), rot: 0, size: 1 }));
   const m = new THREE.Matrix4();
