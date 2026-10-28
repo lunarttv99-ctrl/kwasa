@@ -2,6 +2,13 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## Sterowanie mapą
+
+- **Jeden palec na polu** — sianie, podlewanie i zbiory (można przeciągać po wielu grządkach).
+- **Jeden palec poza polem** (trawa, las, drzewa) — przesuwanie mapy, z płynnym wyhamowaniem.
+- **Dwa palce** — przybliżanie i oddalanie (szczypanie), obracanie (skręt palcami) i przesuwanie.
+- **Kółko myszy** — przybliżanie na komputerze. **⟳** obraca o 90°, **🎯** wraca do widoku pola.
+
 ## Nowości w wersji 4 — sad, przetwórnia i zima
 
 - **🍎 Sad:** jabłonie, wiśnie, grusze i brzoskwinie sadzi się raz na grządce — owocują wiele razy. Wiosną kwitną, zimą śpią (chyba że stoją przy grzejniku). Dwa ule zapylają sad i dają dodatkowy owoc 🐝.
