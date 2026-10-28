@@ -2,6 +2,15 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## 🦉 Sowa Mądralińska — wbudowana pomocniczka
+
+Sowa w prawym dolnym rogu pola (albo „Więcej → Sowa Mądralińska”):
+- **💬 Zapytaj:** rozumie pytania po polsku („skąd wziąć gwoździe?”, „jak przetrwać zimę?”, „do czego jest mąka?”, „co mam teraz robić?”) i odpowiada z przyciskami prowadzącymi w odpowiednie miejsce gry.
+- **Rady na żywo:** patrzy na Twoje gospodarstwo (wrony, przymrozki, dojrzałe plony, głodne zwierzęta, zamówienia, zadania) i sama odzywa się w dymku, gdy dzieje się coś ważnego.
+- **📖 Encyklopedia:** każdy przedmiot z informacją skąd go wziąć i do czego służy oraz poradniki — z wyszukiwarką.
+
+Działa bez internetu: odpowiedzi są budowane na bieżąco z danych gry (`agent.js`), więc zawsze pasują do aktualnej wersji.
+
 ## Sterowanie mapą
 
 - **Jeden palec na polu** — sianie, podlewanie i zbiory (można przeciągać po wielu grządkach).
@@ -67,6 +76,7 @@ To zwykłe pliki statyczne – nie trzeba niczego budować.
 - `game.js` – logika gry i zapis (localStorage, klucz `wiejskie_zycie_save_v1`),
 - `data.js` – definicje treści: uprawy, przepisy, ulepszenia, zadania, osiągnięcia,
 - `music.js` – generowana muzyka w tle,
+- `agent.js` – Sowa Mądralińska: odpowiedzi na pytania, rady i encyklopedia,
 - `farm3d.js` – scena 3D gospodarstwa,
 - `vendor/three.module.min.js` – biblioteka Three.js r169 (licencja MIT, `vendor/three-LICENSE.txt`),
 - `fonts/` – czcionka Fredoka (licencja SIL Open Font License),
