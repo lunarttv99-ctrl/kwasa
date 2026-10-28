@@ -472,6 +472,115 @@ function greenhouseModel() {
   return g;
 }
 
+const TREE_LOOK = {
+  apple:  { leaf: '#5aa83e', fruit: '#e53935', blossom: '#ffe4ec', r: 0.055 },
+  cherry: { leaf: '#4e9a3a', fruit: '#a3141c', blossom: '#ffd1e0', r: 0.04 },
+  pear:   { leaf: '#6aae48', fruit: '#cddc39', blossom: '#ffffff', r: 0.055 },
+  peach:  { leaf: '#7cb342', fruit: '#ffab73', blossom: '#ffc1d6', r: 0.06 }
+};
+
+function fruitTreeModel(type, { ready, dormant, blossom, young }, rnd) {
+  const look = TREE_LOOK[type];
+  const g = new THREE.Group();
+  const bark = mat('#7a5230');
+  g.add(mesh(G.cyl(0.06, 0.09, 0.55, 5), bark, 0, 0.27, 0));
+  [-1, 1].forEach(sd => {
+    const br = mesh(G.cyl(0.025, 0.035, 0.32, 4), bark, sd * 0.1, 0.62, 0);
+    br.rotation.z = -sd * 0.7;
+    g.add(br);
+  });
+  if (dormant) {
+    const up = mesh(G.cyl(0.02, 0.03, 0.3, 4), bark, 0, 0.72, 0);
+    g.add(up);
+    [-1, 1].forEach(sd => g.add(mesh(G.ico(0.06), mat('#f4f8fb'), sd * 0.2, 0.78, 0, false)));
+    g.add(mesh(G.ico(0.07), mat('#f4f8fb'), 0, 0.88, 0, false));
+  } else {
+    g.add(mesh(G.ico(0.36), mat(look.leaf), 0, 0.82, 0));
+    g.add(mesh(G.ico(0.24), mat(look.leaf), 0.16, 1.02, 0.06));
+    const dots = ready ? 8 : blossom ? 12 : 0;
+    const dotMat = mat(ready ? look.fruit : look.blossom);
+    for (let k = 0; k < dots; k++) {
+      const a = rnd() * Math.PI * 2;
+      const y = 0.68 + rnd() * 0.35;
+      const rr = 0.34 - Math.abs(y - 0.82) * 0.4;
+      const d = mesh(G.sphere(ready ? look.r : 0.035, 6, 5), dotMat, Math.cos(a) * rr, y, Math.sin(a) * rr + 0.04, false);
+      if (type === 'pear' && ready) d.scale.y = 1.3;
+      g.add(d);
+    }
+  }
+  if (young) g.scale.setScalar(0.7);
+  return g;
+}
+
+function heaterModel() {
+  const g = new THREE.Group();
+  const iron = mat('#4a4a52');
+  g.add(mesh(G.box(0.4, 0.06, 0.4), mat('#8d8d8d'), 0, 0.03, 0));
+  g.add(mesh(G.box(0.34, 0.34, 0.34), iron, 0, 0.23, 0));
+  g.add(mesh(G.box(0.38, 0.04, 0.38), mat('#2f2f35'), 0, 0.42, 0));
+  g.add(mesh(G.cyl(0.05, 0.05, 0.45, 6), iron, -0.1, 0.65, -0.1));
+  const grill = mesh(G.box(0.22, 0.12, 0.02), mat('#2a2a2a'), 0, 0.2, 0.18, false);
+  g.add(grill);
+  g.userData.grill = grill;
+  const puffs = [0, 1, 2].map(k => {
+    const puff = mesh(G.ico(0.07), new THREE.MeshLambertMaterial({ color: '#d9d9d9', transparent: true, opacity: 0.6, depthWrite: false }), -0.1, 0.9, -0.1, false);
+    puff.userData.seed = k / 3;
+    g.add(puff);
+    return puff;
+  });
+  g.userData.puffs = puffs;
+  return g;
+}
+
+function pressModel() {
+  const g = gabledBuilding({ w: 1.1, h: 0.75, d: 0.9, roofH: 0.4, wall: '#c8a26a', roof: '#7a4a2a' });
+  g.add(mesh(G.cyl(0.22, 0.22, 0.45, 10), mat('#8d5a3b'), 0.75, 0.22, 0.25));
+  [0.1, 0.32].forEach(y => g.add(mesh(G.cyl(0.23, 0.23, 0.04, 10), mat('#3e3e3e'), 0.75, y, 0.25, false)));
+  g.add(mesh(G.box(0.3, 0.15, 0.22), mat('#a8743f'), 0.7, 0.07, -0.3));
+  [[-0.06, 0], [0.06, 0.04], [0, -0.05]].forEach(([x, z]) => g.add(mesh(G.sphere(0.05, 6, 5), mat('#e53935'), 0.7 + x, 0.17, -0.3 + z, false)));
+  return g;
+}
+
+function dairyModel() {
+  const g = gabledBuilding({ w: 1.1, h: 0.8, d: 0.9, roofH: 0.4, wall: '#f5f5f5', roof: '#3f6fb5' });
+  g.add(mesh(G.box(0.3, 0.45, 0.04), mat('#6b8fc7'), 0, 0.22, 0.46, false));
+  [-0.1, 0.12].forEach(x => {
+    g.add(mesh(G.cyl(0.07, 0.08, 0.22, 8), mat('#c9ced6'), 0.7 + x, 0.11, 0.3));
+    g.add(mesh(G.cyl(0.04, 0.05, 0.05, 8), mat('#c9ced6'), 0.7 + x, 0.25, 0.3));
+  });
+  return g;
+}
+
+function oilmillModel() {
+  const g = gabledBuilding({ w: 1.2, h: 0.85, d: 1.0, roofH: 0.45, wall: '#e0b84a', roof: '#6b4423' });
+  const petals = mesh(G.cyl(0.2, 0.2, 0.06, 10), mat('#ffcc1a'), 0, 0.95, 0.52, false);
+  const seeds = mesh(G.cyl(0.1, 0.1, 0.07, 10), mat('#6d4c25'), 0, 0.95, 0.55, false);
+  petals.rotation.x = Math.PI / 2;
+  seeds.rotation.x = Math.PI / 2;
+  g.add(petals, seeds);
+  [0, 0.28].forEach(z => g.add(mesh(G.cyl(0.13, 0.13, 0.36, 8), mat('#7a5230'), 0.8, 0.18, z)));
+  return g;
+}
+
+function fertworksModel() {
+  const g = new THREE.Group();
+  const heap = mesh(G.ico(0.42, 1), mat('#5d4025'), 0, 0.05, 0);
+  heap.scale.set(1.2, 0.55, 1);
+  g.add(heap);
+  [[-0.55, 0], [0.55, 0], [0, -0.45]].forEach(([x, z]) => {
+    const plank = mesh(G.box(Math.abs(x) ? 0.05 : 1.1, 0.28, Math.abs(x) ? 0.9 : 0.05), mat('#a8743f'), x, 0.1, z);
+    g.add(plank);
+  });
+  [[0.1, 0.1], [-0.15, -0.05]].forEach(([x, z]) => {
+    const worm = mesh(G.cyl(0.02, 0.02, 0.14, 5), mat('#e88e9c'), x, 0.24, z, false);
+    worm.rotation.z = 1.2;
+    g.add(worm);
+  });
+  g.add(mesh(G.box(0.08, 0.5, 0.04), mat('#7a5230'), 0.5, 0.25, 0.42));
+  g.add(mesh(G.box(0.36, 0.2, 0.03), mat('#fff8e7'), 0.5, 0.52, 0.44, false));
+  return g;
+}
+
 function weedModel(rnd) {
   const g = new THREE.Group();
   const m = mat('#3b6e22');
@@ -784,9 +893,11 @@ export function createFarm3D(canvas, api) {
   mill.add(mesh(G.cyl(0.35, 0.6, 2.3, 6), mat('#efe3c8'), 0, 1.15, 0));
   mill.add(mesh(G.cone(0.5, 0.6, 6), mat('#8d4b2a'), 0, 2.6, 0));
   const blades = new THREE.Group();
+  const millArms = [];
   blades.position.set(0, 2.25, 0.55);
   for (let k = 0; k < 4; k++) {
     const arm = new THREE.Group();
+    millArms.push(arm);
     arm.rotation.z = (k * Math.PI) / 2;
     arm.add(mesh(G.box(0.05, 1.3, 0.04), mat('#6b4423'), 0, 0.65, 0));
     arm.add(mesh(G.box(0.24, 0.9, 0.02), mat('#fff8e7'), 0.13, 0.8, 0));
@@ -825,7 +936,7 @@ export function createFarm3D(canvas, api) {
 
   // Trees and flowers around
   [
-    [-6.6, -2.5, 'tree', 1.4], [-6.2, 1.8, 'pine', 1.5], [-7.0, 5.0, 'tree', 1.3], [6.4, -1.6, 'pine', 1.4], [6.8, 2.4, 'tree', 1.5],
+    [-6.6, -2.5, 'tree', 1.4], [-6.2, 1.8, 'pine', 1.5], [6.4, -1.6, 'pine', 1.4],
     [6.0, 5.8, 'pine', 1.2], [-3.5, -hz - 5.2, 'pine', 1.6], [-0.6, -hz - 5.6, 'tree', 1.6], [3.8, -hz - 5.4, 'pine', 1.7],
     [-4.8, 7.4, 'tree', 1.2], [4.6, 7.8, 'tree', 1.3], [0.4, 8.4, 'pine', 1.2], [-8.5, -6, 'pine', 1.8], [8.6, -6.2, 'tree', 1.8]
   ].forEach(([x, z, kind, s]) => {
@@ -972,6 +1083,27 @@ export function createFarm3D(canvas, api) {
     scene.add(b);
   });
 
+  // Processing plant buildings
+  const procBuildings = {
+    press: pressModel(),
+    dairy: dairyModel(),
+    oilmill: oilmillModel(),
+    fertworks: fertworksModel()
+  };
+  procBuildings.press.position.set(-6.6, -0.14, 3.6);
+  procBuildings.press.rotation.y = 0.8;
+  procBuildings.dairy.position.set(6.7, -0.14, 3.4);
+  procBuildings.dairy.rotation.y = -0.8;
+  procBuildings.oilmill.position.set(6.6, -0.14, -3.4);
+  procBuildings.oilmill.rotation.y = -1.0;
+  procBuildings.fertworks.position.set(-4.8, -0.14, hz + 1.1);
+  Object.values(procBuildings).forEach(b => {
+    b.visible = false;
+    scene.add(b);
+  });
+  const warmMat = new THREE.MeshBasicMaterial({ color: '#ff9a3c', transparent: true, opacity: 0.22, depthWrite: false });
+  const warmGeo = new THREE.CircleGeometry(0.5, 20);
+
   // Helpers and the dog
   const jozek = personModel({ shirt: '#4a7bd0', hat: 'straw' });
   const basia = personModel({ shirt: '#c2185b', hat: 'scarf' });
@@ -1059,8 +1191,10 @@ export function createFarm3D(canvas, api) {
     t.sparkle = null;
     const r = mulberry32(i * 97 + 13);
 
+    t.heater = null;
     let baseKey = 'grass';
     if (info.s === 'locked') baseKey = info.buyable ? 'buyable' : 'locked';
+    else if (info.s === 'tree') baseKey = 'grass';
     else if (info.s !== 'grass') baseKey = info.wet ? 'wet' : 'soil';
     t.base.material = BASES[baseKey];
     t.base.geometry = baseKey === 'soil' || baseKey === 'wet' ? soilGeo : tileGeo;
@@ -1072,7 +1206,28 @@ export function createFarm3D(canvas, api) {
       return o;
     };
 
-    if (info.s === 'grass') {
+    if (info.heated && info.s !== 'heater' && info.s !== 'locked') {
+      const warm = extra(new THREE.Mesh(warmGeo, warmMat));
+      warm.rotation.x = -Math.PI / 2;
+      warm.position.y = 0.075;
+    }
+    if (info.frozen) {
+      const ice = extra(sprite('❄️', 'plain', 0.45, 0.225));
+      ice.position.set(-0.25, 0.7, 0.15);
+    }
+    if (info.s === 'tree') {
+      t.content = fruitTreeModel(info.tree, info, r);
+      t.group.add(t.content);
+      if (info.ready) {
+        t.ring = extra(new THREE.Mesh(ringGeo, ringMat));
+        t.ring.rotation.x = -Math.PI / 2;
+        t.ring.position.y = 0.02;
+      }
+    } else if (info.s === 'heater') {
+      t.heater = extra(heaterModel());
+      t.heater.userData.grill.material = info.active ? glow('#ff7a1a') : mat('#2a2a2a');
+      t.heater.userData.puffs.forEach(pf => { pf.visible = info.active; });
+    } else if (info.s === 'grass') {
       for (let k = 0; k < 4; k++) extra(mesh(G.cone(0.03, 0.1, 3), mat('#6fae3a'), (r() - 0.5) * 0.7, 0.04, (r() - 0.5) * 0.7, false));
     } else if (info.s === 'locked') {
       t.content = decoModel(info.deco, r);
@@ -1336,6 +1491,7 @@ export function createFarm3D(canvas, api) {
     else if (weather !== 'sunny') skyColor.lerp(cA.set('#8c96a0'), weather === 'rain' ? 0.5 : 0.28);
     const night = h >= 20.5 || h < 5.5;
     if (halloween && (h >= 18 || h < 6.5)) skyColor.lerp(cA.set('#4a2a6b'), 0.35);
+    if (api.frostNight()) skyColor.lerp(cA.set('#9fd0ff'), 0.3);
     scene.background.copy(skyColor);
     scene.fog.color.copy(skyColor);
 
@@ -1385,7 +1541,7 @@ export function createFarm3D(canvas, api) {
     for (let i = 0; i < tiles.length; i++) {
       const info = api.tile(i);
       info.stage = info.s === 'crop' ? (info.ready ? 2 : info.f < 0.3 ? 0 : 1) : -1;
-      const sig = `${info.s}|${info.deco}|${info.buyable ? info.price : ''}|${info.crop}|${info.stage}|${info.wet}|${info.weed}|${info.crow}|${info.golden}`;
+      const sig = `${info.s}|${info.deco}|${info.buyable ? info.price : ''}|${info.crop}|${info.stage}|${info.wet}|${info.weed}|${info.crow}|${info.golden}|${info.tree}|${info.ready}|${info.dormant}|${info.blossom}|${info.young}|${info.heated}|${info.frozen}|${info.active}`;
       const t = tiles[i];
       if (sig !== t.sig) {
         t.sig = sig;
@@ -1400,9 +1556,23 @@ export function createFarm3D(canvas, api) {
         t.pulse = Math.max(0, t.pulse - dt * 3);
         s *= 1 + Math.sin(t.pulse * Math.PI) * 0.25;
       }
-      if (t.content && info.s !== 'locked') {
+      if (info.s === 'tree' && t.content) {
+        const base = info.young ? 0.7 : 1;
+        const pulse = t.pulse > 0 ? 1 + Math.sin(t.pulse * Math.PI) * 0.15 : 1;
+        t.content.scale.setScalar(base * pulse);
+        t.content.rotation.z = info.ready ? Math.sin(time * 2 + i) * 0.03 : 0;
+      } else if (t.content && info.s !== 'locked') {
         t.content.scale.set(s, s, s);
         t.content.position.y = lift;
+      }
+      if (t.heater && info.active) {
+        t.heater.userData.puffs.forEach(pf => {
+          const k = (time * 0.5 + pf.userData.seed) % 1;
+          pf.position.set(-0.1 + Math.sin(time + pf.userData.seed * 6) * 0.05, 0.9 + k * 0.7, -0.1);
+          pf.scale.setScalar(0.6 + k * 1.2);
+          pf.material.opacity = 0.6 * (1 - k);
+        });
+        t.heater.userData.grill.scale.y = 1 + Math.sin(time * 9 + i) * 0.15;
       }
       if (t.drop) t.drop.position.y = 0.75 + Math.sin(time * 4 + i) * 0.06;
       if (t.sparkle) t.sparkle.position.y = 0.9 + Math.sin(time * 3 + i) * 0.08;
@@ -1438,7 +1608,14 @@ export function createFarm3D(canvas, api) {
     syncAnimals(api.animals());
     animateAnimals(api.animals(), dt, time);
 
-    blades.rotation.z -= dt * (api.weather() === 'rain' ? 1.6 : 0.8);
+    const builtProc = api.processors();
+    const millFixed = builtProc.includes('grainmill');
+    millArms[1].visible = millFixed;
+    millArms[3].visible = millFixed;
+    if (millFixed) blades.rotation.z -= dt * (api.weather() === 'rain' ? 1.6 : 0.8);
+    Object.entries(procBuildings).forEach(([id, b]) => {
+      b.visible = builtProc.includes(id);
+    });
     clouds.forEach(c => {
       c.position.x += c.userData.speed * dt;
       if (c.position.x > 16) c.position.x = -16;

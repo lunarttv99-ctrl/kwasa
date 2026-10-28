@@ -29,6 +29,20 @@ export const ITEMS = {
   pierogi:     { name: 'Pierogi ruskie', icon: '🥟', price: 330 },
   bigos:       { name: 'Bigos z grzybami', icon: '🥘', price: 380 },
   mizeria:     { name: 'Mizeria', icon: '🥗', price: 260 },
+  apple:       { name: 'Jabłka', icon: '🍎', price: 20 },
+  cherry:      { name: 'Wiśnie', icon: '🍒', price: 18 },
+  pear:        { name: 'Gruszki', icon: '🍐', price: 32 },
+  peach:       { name: 'Brzoskwinie', icon: '🍑', price: 45 },
+  flour:       { name: 'Mąka', icon: '🍚', price: 14 },
+  juice:       { name: 'Sok jabłkowy', icon: '🧃', price: 85 },
+  kompot:      { name: 'Kompot wiśniowy', icon: '🍹', price: 75 },
+  smoothie:    { name: 'Koktajl brzoskwiniowy', icon: '🥤', price: 160 },
+  butter:      { name: 'Masło', icon: '🧈', price: 95 },
+  oil:         { name: 'Olej słonecznikowy', icon: '🛢️', price: 115 },
+  fries:       { name: 'Frytki', icon: '🍟', price: 190 },
+  donut:       { name: 'Pączki z dżemem', icon: '🍩', price: 290 },
+  croissant:   { name: 'Rogaliki maślane', icon: '🥐', price: 170 },
+  cupcake:     { name: 'Babeczki wiśniowe', icon: '🧁', price: 115 },
   candy:       { name: 'Cukierki', icon: '🍬', price: 30 },
   pumpkinsoup: { name: 'Zupa dyniowa', icon: '🥣', price: 110 },
   ghostcookie: { name: 'Ciastka-duszki', icon: '🍪', price: 150 },
@@ -84,7 +98,63 @@ export const RECIPES = {
   pie:       { level: 8,  time: 240, input: { pumpkin: 1, egg: 2, wheat: 2 }, xp: 12 },
   pierogi:   { level: 8,  time: 240, input: { potato: 3, cheese: 1, wheat: 2 }, xp: 14 },
   bigos:     { level: 9,  time: 300, input: { cabbage: 3, mushroom: 2, tomato: 1 }, xp: 16 },
-  mizeria:   { level: 10, time: 240, input: { cucumber: 2, milk: 1 }, xp: 16 }
+  mizeria:   { level: 10, time: 240, input: { cucumber: 2, milk: 1 }, xp: 16 },
+  cupcake:   { level: 5,  time: 90,  input: { flour: 1, cherry: 3, egg: 1 }, xp: 6 },
+  fries:     { level: 6,  time: 60,  input: { potato: 3, oil: 1 }, xp: 8 },
+  croissant: { level: 6,  time: 120, input: { flour: 2, butter: 1, egg: 1 }, xp: 9 },
+  donut:     { level: 7,  time: 150, input: { flour: 2, egg: 1, jam: 1 }, xp: 12 }
+};
+
+// Sad: drzewa sadzi się raz, a owocują wielokrotnie.
+export const TREES = {
+  apple:  { name: 'Jabłoń', icon: '🍎', level: 3, cost: { coins: 120 }, grow: 240, regrow: 180, yield: 3, xp: 4 },
+  cherry: { name: 'Wiśnia', icon: '🍒', level: 5, cost: { coins: 250 }, grow: 300, regrow: 240, yield: 4, xp: 5 },
+  pear:   { name: 'Grusza', icon: '🍐', level: 7, cost: { coins: 400, wood: 4 }, grow: 420, regrow: 300, yield: 3, xp: 7 },
+  peach:  { name: 'Brzoskwinia', icon: '🍑', level: 9, cost: { coins: 650, wood: 6 }, grow: 540, regrow: 360, yield: 3, xp: 9 }
+};
+
+export const HEATER = {
+  name: 'Grzejnik ogrodowy', icon: '🔥', level: 4,
+  cost: { coins: 300, stone: 6, nails: 2 },
+  burn: 90
+};
+
+// Przetwórnia: budynki przerabiające plony na półprodukty.
+export const PROCESSORS = {
+  grainmill: {
+    name: 'Młyn zbożowy', icon: '🌾', level: 3, slots: 2,
+    cost: { coins: 300, wood: 10, stone: 6 },
+    text: 'Mieli zboże na mąkę do wypieków.',
+    recipes: { flour: { input: { wheat: 3 }, out: 2, time: 40, xp: 2 } }
+  },
+  fertworks: {
+    name: 'Wytwórnia nawozu', icon: '🪱', level: 3, slots: 1,
+    cost: { coins: 250, wood: 8 },
+    text: 'Dżdżownice zamieniają resztki plonów w nawóz turbo.',
+    recipes: { fert: { input: { wheat: 6, carrot: 3 }, booster: 'fert', out: 1, time: 300, xp: 3 } }
+  },
+  press: {
+    name: 'Tłocznia soków', icon: '🧃', level: 4, slots: 2,
+    cost: { coins: 500, wood: 14, nails: 4 },
+    text: 'Wyciska soki i kompoty z owoców z sadu.',
+    recipes: {
+      juice: { input: { apple: 3 }, out: 1, time: 60, xp: 4 },
+      kompot: { input: { cherry: 4, honey: 1 }, out: 2, time: 90, xp: 6 },
+      smoothie: { input: { peach: 2, milk: 1 }, out: 1, time: 90, xp: 8 }
+    }
+  },
+  dairy: {
+    name: 'Mleczarnia', icon: '🧈', level: 5, slots: 2,
+    cost: { coins: 700, wood: 12, stone: 10 },
+    text: 'Ubija masło ze świeżego mleka.',
+    recipes: { butter: { input: { milk: 2 }, out: 1, time: 80, xp: 5 } }
+  },
+  oilmill: {
+    name: 'Olejarnia', icon: '🛢️', level: 6, slots: 1,
+    cost: { coins: 900, wood: 15, stone: 12, nails: 6 },
+    text: 'Tłoczy olej z nasion słonecznika.',
+    recipes: { oil: { input: { sunflower: 3 }, out: 1, time: 100, xp: 6 } }
+  }
 };
 
 export const HALLOWEEN = {
@@ -159,6 +229,13 @@ export const UPGRADES = {
     name: 'Szklarnia', icon: '🏡', level: 7,
     levels: [{ cost: { coins: 5000, wood: 30, stone: 30, nails: 15, gold: 5 }, text: 'Zimą rośliny rosną normalnie.' }]
   },
+  heaters: {
+    name: 'Lepsze grzejniki', icon: '♨️', level: 6,
+    levels: [
+      { cost: { coins: 1500, stone: 15, nails: 6 }, text: 'Grzejniki ogrzewają kwadrat 5×5 zamiast 3×3.' },
+      { cost: { coins: 4000, stone: 25, nails: 12, gold: 3 }, text: 'Grzejniki zużywają połowę drewna.' }
+    ]
+  },
   dog: {
     name: 'Pies Burek', icon: '🐕', level: 5,
     levels: [{ cost: { coins: 800, gold: 4 }, text: 'Sam przegania wrony z pola i biega po gospodarstwie.' }]
@@ -200,7 +277,7 @@ export const PROJECTS = {
   mill: {
     name: 'Młyn wodny', icon: '⚙️', level: 4, gold: 3,
     needs: { coins: 400, wood: 15, stone: 10, wheat: 20 },
-    perk: 'Chleb i popcorn wychodzą z kuchni podwójnie.'
+    perk: 'Chleb i popcorn wychodzą z kuchni podwójnie, a Przetwórnia pracuje o 25% szybciej.'
   },
   hall: {
     name: 'Świetlica', icon: '🏛️', level: 5, gold: 4,
@@ -254,7 +331,8 @@ export const BOOSTERS = {
   rain:     { name: 'Deszczownica', icon: '🌧️', text: 'Podlewa całe pole.' },
   treat:    { name: 'Przysmak dla zwierząt', icon: '🦴', text: 'Wszystkie najedzone zwierzęta od razu dają produkty.' },
   coffee:   { name: 'Kawa zbożowa', icon: '☕', text: 'Pomocnicy pracują 2× szybciej przez 10 minut.' },
-  goldseed: { name: 'Złote nasiono', icon: '🌟', text: 'Następna zasiana roślina będzie złota.' }
+  goldseed: { name: 'Złote nasiono', icon: '🌟', text: 'Następna zasiana roślina będzie złota.' },
+  fleece:   { name: 'Agrowłóknina', icon: '🧣', text: 'Przykrywa pole — następny przymrozek nic nie zniszczy.' }
 };
 
 export const MERCHANT_POOL = [
@@ -269,7 +347,9 @@ export const MERCHANT_POOL = [
   { kind: 'booster', id: 'treat', qty: 1, price: { coins: 350 } },
   { kind: 'booster', id: 'coffee', qty: 1, price: { gold: 1 } },
   { kind: 'booster', id: 'goldseed', qty: 1, price: { gold: 2 } },
-  { kind: 'gold', id: 'gold', qty: 1, price: { coins: 1500 } }
+  { kind: 'gold', id: 'gold', qty: 1, price: { coins: 1500 } },
+  { kind: 'booster', id: 'fleece', qty: 1, price: { coins: 250 } },
+  { kind: 'booster', id: 'fleece', qty: 3, price: { gold: 1 } }
 ];
 
 // Kronika wsi — fabularne zadania prowadzące przez całą grę.
@@ -298,6 +378,11 @@ export const QUESTS = [
   { title: 'Wieś odżywa', text: 'Ukończ jeszcze dwa projekty odbudowy wsi.', goal: { stat: 'projects', n: 2 }, reward: { gold: 3 } },
   { title: 'Złoty plon', text: 'Mówią, że czasem na polu wyrasta złota roślina. Znajdź ją!', goal: { stat: 'golden', n: 1 }, reward: { gold: 3 } },
   { title: 'Mistrz pierogów', text: 'Ulep pierogi ruskie jak u babci.', goal: { stat: 'c_pierogi', n: 3 }, reward: { coins: 1000, gold: 5 } },
+  { title: 'Pierwsza jabłoń', text: 'Sad to duma każdej wsi. Wybierz drzewko na dole ekranu i posadź je na grządce.', goal: { stat: 'trees', n: 1 }, reward: { coins: 150 } },
+  { title: 'Mąka z młyna', text: 'Zbuduj młyn zbożowy w Przetwórni (zakładka Kuchnia) i zmiel mąkę.', goal: { stat: 'p_flour', n: 4 }, reward: { gold: 2 } },
+  { title: 'Soczysty sad', text: 'Zbierz owoce z drzew. Pszczoły w ulach pomagają w zapylaniu!', goal: { stat: 'fruit', n: 15 }, reward: { coins: 300 } },
+  { title: 'Ciepło w zimie', text: 'Zimą przychodzą przymrozki. Postaw grzejnik na polu — ogrzeje rośliny dookoła.', goal: { stat: 'heaters', n: 1 }, reward: { gold: 2 } },
+  { title: 'Mistrz przetwórstwa', text: 'Przerób w Przetwórni 20 produktów.', goal: { stat: 'processed', n: 20 }, reward: { gold: 4 } },
   { title: 'Gospodarz roku', text: 'Zdobądź 12. poziom. Cała wieś będzie o Tobie mówić!', goal: { level: 12 }, reward: { gold: 10 } }
 ];
 
@@ -316,7 +401,10 @@ export const ACHIEVEMENTS = [
   { id: 'days', name: 'Weteran wsi', icon: '📅', stat: 'days', tiers: [10, 30, 100], unit: 'dni' },
   { id: 'quests', name: 'Kronikarz', icon: '📜', stat: 'quests', tiers: [5, 15, 25], unit: 'zadań' },
   { id: 'tinker', name: 'Majsterkowicz', icon: '🔨', stat: 'upgrades', tiers: [3, 10, 20], unit: 'ulepszeń' },
-  { id: 'forest', name: 'Leśnik', icon: '🌲', stat: 'trips', tiers: [3, 15, 50], unit: 'wypraw' }
+  { id: 'forest', name: 'Leśnik', icon: '🌲', stat: 'trips', tiers: [3, 15, 50], unit: 'wypraw' },
+  { id: 'orchard', name: 'Sadownik', icon: '🍎', stat: 'fruit', tiers: [20, 100, 400], unit: 'owoców' },
+  { id: 'process', name: 'Przetwórca', icon: '🏭', stat: 'processed', tiers: [10, 50, 200], unit: 'przetworów' },
+  { id: 'frost', name: 'Pogromca mrozu', icon: '❄️', stat: 'frostSaved', tiers: [5, 25, 100], unit: 'uratowanych roślin' }
 ];
 
 export const ACHIEVEMENT_REWARDS = [
@@ -357,7 +445,11 @@ export const TIPS = [
   '🎣 Dotknij stawu albo przycisku z wędką, żeby łowić ryby.',
   '🍂 Każda roślina ma swoją ulubioną porę roku — wtedy rośnie szybciej.',
   '✨ Złote rośliny dają podwójny plon i złote kłosy 🌟.',
-  '⟳ Obróć kamerę, aby zobaczyć gospodarstwo z innej strony.'
+  '⟳ Obróć kamerę, aby zobaczyć gospodarstwo z innej strony.',
+  '🍎 Drzewka owocowe sadzisz raz — owocują wiele razy. Zimą śpią, chyba że je ogrzejesz.',
+  '🐝 Dwa ule lub więcej zapylają sad: każdy zbiór owoców daje dodatkowy owoc.',
+  '🔥 Grzejniki palą drewno 🪵 i chronią rośliny przed przymrozkiem.',
+  '🏭 Przetwórnia jest w zakładce Kuchnia — mąka, soki, masło i olej.'
 ];
 
 export const HALLOWEEN_TIPS = [

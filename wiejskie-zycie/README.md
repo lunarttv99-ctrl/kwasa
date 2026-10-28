@@ -2,6 +2,15 @@
 
 Mobilna gra przeglądarkowa (PWA) o prowadzeniu gospodarstwa na wsi. Działa na iPhonie i Androidzie, można ją dodać do ekranu początkowego, działa offline, a postęp zapisuje się w pamięci telefonu.
 
+## Nowości w wersji 4 — sad, przetwórnia i zima
+
+- **🍎 Sad:** jabłonie, wiśnie, grusze i brzoskwinie sadzi się raz na grządce — owocują wiele razy. Wiosną kwitną, zimą śpią (chyba że stoją przy grzejniku). Dwa ule zapylają sad i dają dodatkowy owoc 🐝.
+- **🏭 Przetwórnia** (zakładka Kuchnia → Przetwórnia): młyn zbożowy (mąka), tłocznia soków (sok jabłkowy, kompot wiśniowy, koktajl brzoskwiniowy), mleczarnia (masło), olejarnia (olej słonecznikowy) i wytwórnia nawozu (dżdżownice robią nawóz turbo do plecaka). Budynki pojawiają się w 3D, a wiatrak zaczyna się kręcić dopiero po naprawie młyna.
+- **🥐 Nowe przepisy:** frytki, rogaliki maślane, pączki z dżemem, babeczki wiśniowe.
+- **🥶 Przymrozki zimą:** rano prognoza, w nocy mróz ścina niezabezpieczone rośliny (kapusta jest odporna).
+- **🔥 Grzejniki ogrodowe:** stawiane na grządce, zimą ogrzewają pole 3×3 (5×5 po ulepszeniu), przyspieszają wzrost i chronią przed mrozem. Palą drewno 🪵 — gdy go zabraknie, gasną. Do tego **🧣 agrowłóknina** u kupca.
+- 5 nowych zadań w kronice i 3 nowe osiągnięcia (Sadownik, Przetwórca, Pogromca mrozu).
+
 ## Nowości w wersji 3 — „Wielka aktualizacja”
 
 - **🔨 Warsztat:** 10 ulepszeń kupowanych poziomami (konewka podlewająca 5 lub 9 grządek i zraszacze, kompostownik, kosa, stragan, rozbudowa zagród, piec, wędka, wóz, szklarnia, pies Burek).
