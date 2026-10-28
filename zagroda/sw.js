@@ -1,9 +1,10 @@
-const CACHE_NAME = 'wiejska-zagroda-v1';
+const CACHE_NAME = 'wiejska-zagroda-v2';
 const FILES_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   './game.js',
+  './more.js',
   './world.js',
   './sprites.js',
   './data.js',

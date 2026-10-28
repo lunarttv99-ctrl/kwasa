@@ -3,7 +3,7 @@
 import { MAP, BUILDINGS, DECOR } from './data.js';
 import {
   P, HW, HH, rng, shade, setSpriteQuality, spriteHit, soilSprite, cropSprite, buildingSprite,
-  scaffoldSprite, animalSprite, treeSprite, decorSprite, customIcon
+  scaffoldSprite, animalSprite, treeSprite, decorSprite, customIcon, ringFrontSprite
 } from './sprites.js';
 
 // Starsze Safari (< 16) nie ma roundRect na canvasie.
@@ -317,6 +317,11 @@ export function createWorld(canvas, G) {
         ctx.restore();
       } else if (it.kind === 'wild') {
         drawSprite(it.s, x, y);
+      } else if (it.kind === 'animal' && it.o.baby > now) {
+        ctx.save();
+        ctx.translate(x, y); ctx.scale(0.62, 0.62); ctx.translate(-x, -y);
+        drawSprite(it.s, x, y);
+        ctx.restore();
       } else {
         drawSprite(it.s, x, y);
         if (it.kind === 'obj') drawLive(it, x, y, ts, now);
@@ -420,6 +425,44 @@ export function createWorld(canvas, G) {
           ctx.beginPath(); ctx.arc(sx, sy, 2.5 + p * 5, 0, 7); ctx.fill();
         }
       }
+      if (meta.float) {
+        // spławik kołysze się na wodzie, żyłka od wędki
+        const fx = x + meta.float[0], fy = y + meta.float[1] + Math.sin(ts * 2.4) * 1.2;
+        ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(x + meta.rodTip[0], y + meta.rodTip[1]); ctx.quadraticCurveTo(fx - 4, fy - 14, fx, fy - 2); ctx.stroke();
+        ctx.fillStyle = '#e0533d'; ctx.beginPath(); ctx.arc(fx, fy - 2, 2, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(fx, fy - 2, 2, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.ellipse(fx, fy, 4 + (ts * 3 % 3), 1.6 + (ts * 3 % 3) * 0.4, 0, 0, Math.PI * 2); ctx.stroke();
+        const jump = (ts * 0.25) % 1;
+        if (jump < 0.12) {
+          const p = jump / 0.12;
+          const jx = x - 20 + p * 16, jy = y + 18 - Math.sin(p * Math.PI) * 12;
+          ctx.fillStyle = '#c99a3a'; ctx.beginPath(); ctx.ellipse(jx, jy, 3.2, 1.6, -0.6 + p * 1.2, 0, 7); ctx.fill();
+        }
+      }
+      if (meta.butterflies) {
+        const cols = ['#ff7aa8', '#ffd23f', '#7ac8ff', '#c46cff'];
+        for (let i = 0; i < 4; i++) {
+          const a = ts * (0.9 + i * 0.2) + i * 1.7;
+          const bx = x + meta.butterflies[0] + Math.cos(a) * (14 + i * 3), by = y + meta.butterflies[1] + Math.sin(a * 1.4) * 7 - 4;
+          const f = Math.abs(Math.sin(ts * 14 + i)) * 2.2 + 0.6;
+          ctx.fillStyle = cols[i];
+          ctx.beginPath(); ctx.ellipse(bx - f / 2, by, f, 1.8, 0.4, 0, 7); ctx.ellipse(bx + f / 2, by, f, 1.8, -0.4, 0, 7); ctx.fill();
+        }
+      }
+      if (meta.kangaroos) {
+        for (let i = 0; i < 2; i++) {
+          const ph = ts * 0.35 + i * 0.5;
+          const u = 0.9 + Math.abs(((ph % 2) + 2) % 2 - 1) * 1.3;
+          const v = 1.2 + i * 0.8;
+          const hop = Math.abs(Math.sin(ts * 3.2 + i)) * 5;
+          const [kx, ky] = P(o.x + u, o.y + v);
+          const flip = Math.floor(((ph % 2) + 2) % 2) === 1;
+          drawSprite(animalSprite('kangaroo', flip), kx, ky - hop);
+        }
+      }
+      if (meta.front) drawSprite(ringFrontSprite(o.k, BUILDINGS[o.k].w, BUILDINGS[o.k].h), x, y);
       if (BUILDINGS[o.k].kind === 'hive') {
         for (let i = 0; i < 3; i++) {
           const a = ts * (2 + i * 0.4) + i * 2;
@@ -440,6 +483,12 @@ export function createWorld(canvas, G) {
           ctx.fillStyle = `rgba(150,215,255,${0.8 * (1 - p)})`;
           ctx.beginPath(); ctx.arc(sx + dx, sy + dy, 1.3, 0, 7); ctx.fill();
         }
+      }
+      if (o.k === 'lighthouse' && meta.glow) {
+        const a = 0.35 + Math.sin(ts * 2) * 0.25;
+        const g = ctx.createRadialGradient(x + meta.glow[0], y + meta.glow[1], 1, x + meta.glow[0], y + meta.glow[1], 18);
+        g.addColorStop(0, `rgba(255,240,160,${a})`); g.addColorStop(1, 'rgba(255,240,160,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x + meta.glow[0], y + meta.glow[1], 18, 0, 7); ctx.fill();
       }
       if (o.k === 'fountain' && meta.spout) {
         const [sx, sy] = [x + meta.spout[0], y + meta.spout[1]];

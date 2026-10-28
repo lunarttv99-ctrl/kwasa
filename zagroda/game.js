@@ -2,8 +2,10 @@
 
 import {
   MAP, PLOW_COST, START, LAND, STORAGE, WELL, SPRINKLER_BOOST, xpForLevel, MAX_LEVEL,
-  ITEMS, CROPS, ANIMALS, TREES, BUILDINGS, DECOR, OBSTACLES, NEIGHBORS, CUSTOMERS, DAILY, QUESTS
+  ITEMS, CROPS, ANIMALS, TREES, BUILDINGS, DECOR, OBSTACLES, NEIGHBORS, CUSTOMERS, DAILY, QUESTS,
+  UPGRADE_SPEED
 } from './data.js';
+import * as More from './more.js';
 import { createWorld } from './world.js';
 import { customIcon, rng } from './sprites.js';
 import { sfx, unlockAudio, setSound } from './sound.js';
@@ -78,6 +80,7 @@ function newGame() {
     if (isFree(x, y, 1, 1) && !(x >= 12 && x <= 17 && y >= 12 && y <= 16)) { add('o', kinds[Math.floor(r() * kinds.length)], x, y); rebuildOcc(); n++; }
   }
   for (let i = 0; i < ORDER_SLOTS; i++) S.orders.push(i < 3 ? genOrder() : { ready: t + (i - 2) * 20000 });
+  More.initState(S);
   return S;
 }
 
@@ -88,6 +91,7 @@ function load() {
     const S = JSON.parse(raw);
     if (!S || S.v !== 1) return null;
     S.settings = { sound: true, quality: 'high', ...S.settings };
+    More.initState(S);
     return S;
   } catch { return null; }
 }
@@ -147,16 +151,42 @@ G.walkable = (x, y, animal) => {
 };
 
 // ---------- waluty, doświadczenie ----------
-function canPay(cost) {
+// Koszt to mapa {waluta albo przedmiot: ilość}. Waluty trzymane są w stanie gry,
+// przedmioty (deski, gwoździe, sadzonki…) w stodole.
+const WALLET = {
+  coins: ['🪙', 'talarów'], ducats: ['💎', 'dukatów'], shells: ['🐚', 'muszelek'], medals: ['🏅', 'medali'],
+  auto: ['⚙️', 'punktów automatyzacji'], tickets: ['🎟️', 'biletów'], tokens: [null, 'żetonów wydarzenia']
+};
+function balance(k) {
   const S = G.state;
-  if (cost.coins && S.coins < cost.coins) { toast('Za mało talarów 🪙'); sfx.error(); return false; }
-  if (cost.ducats && S.ducats < cost.ducats) { toast('Za mało dukatów 💎'); sfx.error(); return false; }
+  if (k === 'tokens') return S.event.tokens;
+  if (k in WALLET) return S[k] || 0;
+  return S.inv[k] || 0;
+}
+function currencyIcon(k) { return k === 'tokens' ? More.tokenIcon() : WALLET[k]?.[0]; }
+function canPay(cost) {
+  for (const k in cost) {
+    if (balance(k) >= cost[k]) continue;
+    toast(k in WALLET ? `Za mało ${WALLET[k][1]} ${currencyIcon(k)}` : `Brakuje: ${ITEMS[k].name} (${balance(k)}/${cost[k]})`);
+    sfx.error();
+    return false;
+  }
   return true;
 }
 function pay(cost) {
-  G.state.coins -= cost.coins || 0;
-  G.state.ducats -= cost.ducats || 0;
+  const S = G.state;
+  for (const k in cost) {
+    if (k === 'tokens') S.event.tokens -= cost[k];
+    else if (k in WALLET) S[k] -= cost[k];
+    else { S.inv[k] -= cost[k]; if (!S.inv[k]) delete S.inv[k]; }
+  }
   updateHUD();
+}
+function costText(cost) {
+  return Object.entries(cost).map(([k, n]) => `${fmt(n)} ${k in WALLET ? currencyIcon(k) : iconRaw(k).startsWith('@') ? ITEMS[k].name : iconRaw(k)}`).join(' + ');
+}
+function costHTML(cost) {
+  return Object.entries(cost).map(([k, n]) => `<span class="need ${balance(k) >= n ? 'have' : ''}">${k in WALLET ? `<span class="emo">${currencyIcon(k)}</span>` : icon(k)}${fmt(n)}</span>`).join('');
 }
 function addCoins(n, from) {
   G.state.coins += n;
@@ -224,8 +254,13 @@ function plant(x, y, cropId, quiet) {
   if (!f || f.c) return false;
   const c = CROPS[cropId];
   if (c.lvl > G.state.level) { if (!quiet) toast(`${ITEMS[cropId].name}: od poziomu ${c.lvl}`); return false; }
-  if (G.state.coins < c.seed) { if (!quiet) { toast('Za mało talarów na nasiona'); sfx.error(); } return false; }
-  G.state.coins -= c.seed;
+  if (c.exotic) {
+    if (!G.state.inv[c.exotic]) { if (!quiet) { toast(`Potrzebne: ${ITEMS[c.exotic].name} (Egzotyczny sklep, port)`); sfx.error(); } return false; }
+    takeItems({ [c.exotic]: 1 });
+  } else {
+    if (G.state.coins < c.seed) { if (!quiet) { toast('Za mało talarów na nasiona'); sfx.error(); } return false; }
+    G.state.coins -= c.seed;
+  }
   f.c = cropId;
   f.p = now();
   f.d = c.time * 1000 * (sprinkled(x, y) ? 1 - SPRINKLER_BOOST : 1);
@@ -267,11 +302,16 @@ function harvestTree(o) {
 }
 
 // ---------- zwierzęta ----------
-function animalReady(o, t) { return o.fed && t >= o.fed + ANIMALS[o.k].time * 1000; }
+const animalDur = o => o.dur || ANIMALS[o.k].time * 1000;
+function animalReady(o, t) { return o.fed && t >= o.fed + animalDur(o); }
 function tapAnimal(o) {
   const d = ANIMALS[o.k];
   const t = now();
   const [px, py] = G.world.animalPos(o);
+  if (o.baby && o.baby > t) {
+    tip(px, py, 22, `<b>${d.name}</b> (maluch) dorośnie za <span data-end="${o.baby}"></span>`);
+    return;
+  }
   if (!o.fed) {
     const req = { [d.food]: d.foodN };
     if (!has(req)) {
@@ -281,6 +321,7 @@ function tapAnimal(o) {
     }
     takeItems(req);
     o.fed = t;
+    o.dur = d.time * 1000 * More.ranchFactor(o);
     emit('feed', o.k);
     G.world.addFloat(px, py, `-${d.foodN} ${iconRaw(d.food)}`, '#ffe9b0', 26);
     o.k === 'cow' ? sfx.moo() : o.k === 'chicken' ? sfx.cluck() : sfx.pop();
@@ -293,7 +334,7 @@ function tapAnimal(o) {
     o.fed = 0;
     sfx.pop();
   } else {
-    tip(px, py, 26, `<b>${d.name}</b> — ${ITEMS[d.product].name} za <span data-end="${o.fed + d.time * 1000}"></span>`);
+    tip(px, py, 26, `<b>${d.name}</b> — ${ITEMS[d.product].name} za <span data-end="${o.fed + animalDur(o)}"></span>`);
   }
   updateHUD();
   saveSoon();
@@ -325,17 +366,19 @@ function collectJobs(o) {
   if (got) { sfx.pop(); updateHUD(); saveSoon(); }
   return got;
 }
+const slotsOf = o => (o.slots || 2) + ((o.lvl || 1) - 1);
+const jobTime = (o, r) => r.time * 1000 * (1 - UPGRADE_SPEED * ((o.lvl || 1) - 1));
 function enqueue(o, ri) {
   const d = BUILDINGS[o.k];
   const r = d.recipes[ri];
   o.q = o.q || [];
-  const slots = o.slots || 2;
+  const slots = slotsOf(o);
   if (o.q.length >= slots) { toast('Kolejka jest pełna'); sfx.error(); return; }
   if (!has(r.in)) { toast('Brakuje składników'); sfx.error(); return; }
   takeItems(r.in);
   const t = now();
   const last = o.q.reduce((m, j) => Math.max(m, j.e), t);
-  o.q.push({ r: ri, s: last, e: last + r.time * 1000 });
+  o.q.push({ r: ri, s: last, e: last + jobTime(o, r) });
   sfx.click();
   saveSoon();
 }
@@ -344,6 +387,7 @@ function hiveReady(o, t) { return isBuilt(o, t) && t >= (o.last || 0) + BUILDING
 G.bubbleFor = (it, t) => {
   if (it.kind === 'animal') {
     const o = it.o;
+    if (o.baby && o.baby > t) return null;
     if (!o.fed) return { icon: iconRaw(ANIMALS[o.k].food), color: '#fff2c2' };
     if (animalReady(o, t)) return { icon: iconRaw(ANIMALS[o.k].product) };
     return null;
@@ -361,6 +405,7 @@ G.bubbleFor = (it, t) => {
     }
     if (d.kind === 'hive') return hiveReady(o, t) ? { icon: '🍯' } : null;
     if (d.kind === 'orders') return G.state.orders.some(or => or.items && has(or.items)) ? { icon: '✅', color: '#e9ffd9' } : null;
+    return More.bubble(o, t);
   }
   return null;
 };
@@ -464,6 +509,7 @@ function emit(type, k, n = 1) {
     const q = QUESTS[i];
     if (q.t === type && (!q.k || q.k === k)) G.state.quests.prog[i] = (G.state.quests.prog[i] || 0) + n;
   }
+  More.onEmit(type, k, n);
   renderQuests();
 }
 function claimQuest(i) {
@@ -474,6 +520,7 @@ function claimQuest(i) {
   const r = q.reward;
   if (r.coins) addCoins(r.coins, centerOf('#modal .modal-card'));
   if (r.ducats) G.state.ducats += r.ducats;
+  if (r.auto) G.state.auto += r.auto;
   sfx.coin();
   closeModal();
   addXP(r.xp || 0);
@@ -485,8 +532,9 @@ function claimQuest(i) {
 // ---------- interakcje z mapą ----------
 G.onUserGesture = () => { unlockAudio(); hideTip(); };
 
+const MACHINES = ['fert', 'combine', 'seeder'];
 G.paintStart = (gx, gy, hit) => {
-  if (G.ghost) return null;
+  if (G.ghost || MACHINES.includes(G.tool)) return null;
   const key = `${gx},${gy}`;
   const f = G.state.fields[key];
   const fieldHit = hit.type === 'field' ? G.state.fields[hit.key] : (hit.type === 'tile' ? f : null);
@@ -525,6 +573,7 @@ G.paintEnd = () => { G.paintMode = null; saveSoon(); };
 G.tap = (hit) => {
   if (G.ghost) return;
   if (hit.type === 'bubble') return interact(hit.it.o || null, hit.it);
+  if (MACHINES.includes(G.tool)) return More.useMachine(hit);
   if (hit.type === 'sale') return openShop('land');
   if (G.tool === 'sell') return sellAt(hit);
   if (G.tool === 'move') return moveAt(hit);
@@ -589,7 +638,8 @@ function interact(o, item) {
     if (d.kind === 'storage') return openBarn();
     if (d.kind === 'orders') return openOrders();
     if (d.kind === 'well') return openWell(o);
-    if (d.kind === 'house') return openHouse();
+    if (d.kind === 'house') return More.openHome();
+    return More.interact(o);
   }
 }
 
@@ -624,7 +674,7 @@ function refundOf(o) {
   if (o.t === 'b') return Math.round((BUILDINGS[o.k].cost || 0) * 0.25);
   if (o.t === 'a') return Math.round(ANIMALS[o.k].cost * 0.4);
   if (o.t === 'tree') return Math.round(TREES[o.k].cost * 0.3);
-  if (o.t === 'd') return Math.round((DECOR[o.k].cost || DECOR[o.k].ducats * 40) * 0.25);
+  if (o.t === 'd') return Math.round((DECOR[o.k].cost || (DECOR[o.k].ducats || 4) * 40) * 0.25);
   return 0;
 }
 function sellAt(hit) {
@@ -657,7 +707,32 @@ function moveAt(hit) {
   if (o.t === 'o') { toast('Przeszkody trzeba usunąć'); return; }
   const [w, h] = objSize(o);
   G.ghost = { mode: 'move', obj: o, type: o.t, k: o.k, x: o.x, y: o.y, w, h, valid: true };
-  showGhostBar(`Przesuwasz: ${objName(o)}`);
+  showGhostBar(`Przesuwasz: ${objName(o)}`, !(o.t === 'b' && BUILDINGS[o.k].fixed));
+}
+function stashGhost() {
+  const g = G.ghost;
+  if (!g || g.mode !== 'move') return;
+  const o = g.obj;
+  removeObject(o);
+  const copy = { ...o };
+  delete copy.x; delete copy.y;
+  G.state.stash.push(copy);
+  G.ghost = null;
+  hideGhostBar();
+  toast(`${objName(o)} w schowku (Stodoła → Schowek)`);
+  sfx.click();
+  saveSoon();
+}
+function placeFromStash(i) {
+  const o = G.state.stash[i];
+  if (!o) return;
+  closeSheet();
+  const [w, h] = objSize(o);
+  const [cx, cy] = screenCenterTile();
+  G.ghost = { mode: 'stash', obj: o, idx: i, type: o.t, k: o.k, w, h, x: cx, y: cy, valid: false };
+  const spot = findFree(cx, cy, w, h);
+  if (spot) G.moveGhost(spot[0], spot[1]); else G.moveGhost(cx, cy);
+  showGhostBar(`Ze schowka: ${objName(o)}`);
 }
 
 // ---------- stawianie (duch obiektu) ----------
@@ -666,8 +741,8 @@ function startPlace(type, k) {
   let w = 1, h = 1, cost, name, lvl;
   if (type === 'b') { const d = BUILDINGS[k]; w = d.w; h = d.h; cost = { coins: d.cost }; name = d.name; lvl = d.lvl; }
   if (type === 'a') { cost = { coins: animalCost(k) }; name = ANIMALS[k].name; lvl = ANIMALS[k].lvl; }
-  if (type === 'tree') { cost = { coins: treeCost(k) }; name = TREES[k].name; lvl = TREES[k].lvl; }
-  if (type === 'd') { const d = DECOR[k]; w = d.w || 1; h = d.h || 1; cost = d.ducats ? { ducats: d.ducats } : { coins: d.cost }; name = d.name; lvl = d.lvl; }
+  if (type === 'tree') { cost = treeFullCost(k); name = TREES[k].name; lvl = TREES[k].lvl; }
+  if (type === 'd') { const d = DECOR[k]; w = d.w || 1; h = d.h || 1; cost = decorCost(k); name = d.name; lvl = d.lvl; }
   if (lvl > S.level) { toast(`Odblokujesz na poziomie ${lvl}`); return; }
   if (type === 'b' && BUILDINGS[k].max && S.objects.filter(o => o.k === k).length >= BUILDINGS[k].max) { toast('Masz już ten budynek'); return; }
   if (type === 'd' && k === 'sprinkler') {
@@ -683,7 +758,13 @@ function startPlace(type, k) {
   const spot = findFree(cx, cy, w, h);
   if (spot) { G.ghost.x = spot[0]; G.ghost.y = spot[1]; }
   G.moveGhost(G.ghost.x, G.ghost.y);
-  showGhostBar(`${name} · ${cost.ducats ? cost.ducats + ' 💎' : fmt(cost.coins) + ' 🪙'}`);
+  showGhostBar(`${name} · ${costText(cost)}`);
+}
+const decorCost = k => { const d = DECOR[k]; return d.price ? { ...d.price } : d.ducats ? { ducats: d.ducats } : { coins: d.cost }; };
+function treeFullCost(k) {
+  const c = { coins: treeCost(k) };
+  if (TREES[k].sapling) c[TREES[k].sapling] = 1;
+  return c;
 }
 function screenCenterTile() {
   const [wx, wy] = G.world.toWorld(window.innerWidth / 2, window.innerHeight * 0.45);
@@ -709,6 +790,18 @@ function confirmGhost() {
   const g = G.ghost;
   if (!g || !g.valid) return;
   const S = G.state;
+  if (g.mode === 'stash') {
+    const o = g.obj;
+    o.x = g.x; o.y = g.y;
+    S.stash.splice(S.stash.indexOf(o), 1);
+    S.objects.push(o);
+    G.ghost = null;
+    rebuildOcc();
+    hideGhostBar();
+    sfx.build();
+    saveSoon();
+    return;
+  }
   if (g.mode === 'move') {
     g.obj.x = g.x; g.obj.y = g.y;
     G.ghost = null;
@@ -736,18 +829,18 @@ function confirmGhost() {
   emit('buy', g.k);
   if (g.type === 'd') emit('decor');
   sfx.build();
-  G.world.addFloat(g.x + g.w / 2, g.y + g.h / 2, g.cost.ducats ? `-${g.cost.ducats} 💎` : `-${fmt(g.cost.coins)} 🪙`, '#ffe08a', 30);
+  G.world.addFloat(g.x + g.w / 2, g.y + g.h / 2, `-${costText(g.cost)}`, '#ffe08a', 30);
   saveSoon();
   // dekoracje i zwierzęta można stawiać seriami
   const again = (g.type === 'd' && g.w === 1) || g.type === 'a' || g.type === 'tree';
   if (again) {
-    const cost = g.type === 'a' ? { coins: animalCost(g.k) } : g.type === 'tree' ? { coins: treeCost(g.k) } : g.cost;
-    const enough = (!cost.coins || S.coins >= cost.coins) && (!cost.ducats || S.ducats >= cost.ducats);
+    const cost = g.type === 'a' ? { coins: animalCost(g.k) } : g.type === 'tree' ? treeFullCost(g.k) : g.cost;
+    const enough = Object.keys(cost).every(k => balance(k) >= cost[k]);
     const spr = g.k === 'sprinkler';
     if (enough && !spr) {
       g.cost = cost;
       const spot = findFree(g.x + 1, g.y, g.w, g.h);
-      if (spot) { G.moveGhost(spot[0], spot[1]); showGhostBar(`${objName(o)} · ${cost.ducats ? cost.ducats + ' 💎' : fmt(cost.coins) + ' 🪙'} (kolejny?)`); return; }
+      if (spot) { G.moveGhost(spot[0], spot[1]); showGhostBar(`${objName(o)} · ${costText(cost)} (kolejny?)`); return; }
     }
   }
   G.ghost = null;
@@ -757,8 +850,9 @@ function cancelGhost() { G.ghost = null; hideGhostBar(); }
 const animalCost = k => Math.round(ANIMALS[k].cost * (1 + 0.2 * G.state.objects.filter(o => o.k === k).length) / 10) * 10;
 const treeCost = k => Math.round(TREES[k].cost * (1 + 0.1 * G.state.objects.filter(o => o.k === k).length) / 10) * 10;
 
-function showGhostBar(text) {
+function showGhostBar(text, canStash = false) {
   $('#ghostLabel').textContent = text;
+  $('#ghostStash').hidden = !canStash;
   $('#ghostBar').classList.add('open');
   document.body.classList.add('placing');
 }
@@ -869,7 +963,7 @@ function openQuest(i) {
   const q = QUESTS[i];
   const p = questProgress(i);
   const r = q.reward;
-  const rewards = [r.coins && `${fmt(r.coins)} 🪙`, r.xp && `${r.xp} XP`, r.ducats && `${r.ducats} 💎`].filter(Boolean).join(' · ');
+  const rewards = [r.coins && `${fmt(r.coins)} 🪙`, r.xp && `${r.xp} XP`, r.ducats && `${r.ducats} 💎`, r.auto && `${r.auto} ⚙️`].filter(Boolean).join(' · ');
   const done = p >= q.n;
   openModal(`
     <div class="modal-ico">${q.icon}</div>
@@ -933,7 +1027,7 @@ function openShop(tab = 'seeds') {
         html += card({
           img: preview('crop', id), name: ITEMS[id].name,
           lines: [`⏱ ${fmtTime(c.time)}`, `zbiór: ${c.yield}× ${icon(id)}`],
-          price: `${c.seed} 🪙`, locked: c.lvl > L, lockText: `poziom ${c.lvl}`, action: `seed:${id}`,
+          price: c.exotic ? `1× ${icon(c.exotic)} (${G.state.inv[c.exotic] || 0})` : `${c.seed} 🪙`, locked: c.lvl > L, lockText: `poziom ${c.lvl}`, action: `seed:${id}`,
           cls: G.tool === 'plant' && G.seed === id ? 'selected' : ''
         });
       }
@@ -952,7 +1046,7 @@ function openShop(tab = 'seeds') {
         const t = TREES[k];
         html += card({
           img: preview('tree', k), name: t.name,
-          lines: [`${t.n}× ${icon(t.fruit)} co ${fmtTime(t.time)}`, 'sadzi się raz'],
+          lines: [`${t.n}× ${icon(t.fruit)} co ${fmtTime(t.time)}`, t.sapling ? `+ ${icon(t.sapling)} sadzonka (${G.state.inv[t.sapling] || 0})` : 'sadzi się raz'],
           price: `${fmt(treeCost(k))} 🪙`, locked: t.lvl > L, lockText: `poziom ${t.lvl}`, action: `place:tree:${k}`
         });
       }
@@ -972,6 +1066,7 @@ function openShop(tab = 'seeds') {
     } else if (tab === 'decor') {
       for (const k in DECOR) {
         const d = DECOR[k];
+        if (d.shop) continue;
         const lines = d.special === 'sprinkler' ? ['+15% szybciej pola obok'] : [`${d.w || 1}×${d.h || 1}`];
         html += card({
           img: preview('d', k), name: d.name, lines,
@@ -1026,7 +1121,7 @@ function openSeedPicker(x, y) {
     const c = CROPS[id];
     const lock = c.lvl > L;
     return `<button class="seed ${lock ? 'locked' : ''}" data-seed="${id}" ${lock ? 'disabled' : ''}>
-      <img src="${preview('crop', id)}" alt=""><b>${ITEMS[id].name}</b><small>${lock ? `🔒 poz. ${c.lvl}` : `${c.seed} 🪙 · ${fmtTime(c.time)}`}</small></button>`;
+      <img src="${preview('crop', id)}" alt=""><b>${ITEMS[id].name}</b><small>${lock ? `🔒 poz. ${c.lvl}` : `${c.exotic ? `1× ${icon(c.exotic)}` : `${c.seed} 🪙`} · ${fmtTime(c.time)}`}</small></button>`;
   }).join('')}</div><div class="modal-actions"><button class="btn" data-close>Anuluj</button></div>`, 'wide');
   $('#modal').querySelectorAll('[data-seed]').forEach(b => b.onclick = () => {
     selectSeed(b.dataset.seed);
@@ -1040,9 +1135,17 @@ function selectSeed(id) {
   setTool('plant');
 }
 
-function openBarn(selected) {
-  openSheet('Stodoła', null, null, body => {
+function openBarn(selected, startTab = 'goods') {
+  openSheet('Stodoła', [['goods', '📦 Towary'], ['stash', `🗃️ Schowek (${G.state.stash.length})`]], startTab, (body, tab) => {
     const S = G.state;
+    if (tab === 'stash') {
+      body.innerHTML = S.stash.length
+        ? '<p class="muted center">Obiekty schowane narzędziem „Przesuń”. Dotknij, żeby postawić.</p><div class="grid">' + S.stash.map((o, i) => card({
+          img: preview(o.t, o.k), name: objName(o), lines: [], price: 'Postaw', action: `unstash:${i}`
+        })).join('') + '</div>'
+        : '<p class="empty">Schowek jest pusty. Wybierz „Przesuń” ✥, dotknij obiektu i naciśnij „Do schowka”.</p>';
+      return;
+    }
     const total = invTotal(), cap = capacity();
     const next = STORAGE[S.storageLvl + 1];
     const items = Object.keys(S.inv).filter(k => S.inv[k] > 0);
@@ -1114,9 +1217,10 @@ function openBuilding(o) {
   const d = BUILDINGS[o.k];
   openSheet(d.name, null, null, body => {
     const t = now();
-    const slots = o.slots || 2;
+    const slots = slotsOf(o);
+    const cells = Math.max(4, slots + ((o.slots || 2) < 4 ? 1 : 0));
     let html = '<div class="queue">';
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < cells; i++) {
       const j = o.q[i];
       if (j) {
         const r = d.recipes[j.r];
@@ -1131,11 +1235,12 @@ function openBuilding(o) {
       } else if (i < slots) {
         html += '<div class="slot empty"><span>+</span><small>wolne</small></div>';
       } else {
-        const c = i === 2 ? 5 : 10;
+        const c = (o.slots || 2) === 2 ? 5 : 10;
         html += `<button class="slot locked" data-act="slot:${c}" ${i > slots ? 'disabled' : ''}><span>🔒</span><small>${c} 💎</small></button>`;
       }
     }
     html += '</div>';
+    html += More.buildingExtrasHTML(o);
     if (readyJobs(o, t).length) html += '<button class="btn green wide" data-act="collect">Odbierz gotowe</button>';
     html += '<div class="recipes">';
     d.recipes.forEach((r, ri) => {
@@ -1145,8 +1250,8 @@ function openBuilding(o) {
         <span class="r-out">${icon(r.out)}</span>
         <span class="r-mid"><b>${esc(ITEMS[r.out].name)}</b>
           <span class="r-in">${Object.entries(r.in).map(([k, n]) => `<span class="need ${(G.state.inv[k] || 0) >= n ? 'have' : ''}">${icon(k)}${G.state.inv[k] || 0}/${n}</span>`).join('')}</span>
-          <small>⏱ ${fmtTime(r.time)} · +${r.xp} XP · ${ITEMS[r.out].price} 🪙</small></span>
-        ${lock ? `<span class="lock">🔒 poz. ${r.lvl}</span>` : `<button class="btn small ${ok ? 'green' : ''}" data-act="make:${ri}" ${ok && o.q.length < slots ? '' : 'disabled'}>Produkuj</button>`}
+          <small>⏱ ${fmtTime(jobTime(o, r) / 1000)} · +${r.xp} XP · ${ITEMS[r.out].price} 🪙</small></span>
+        ${lock ? `<span class="lock">🔒 poz. ${r.lvl}</span>` : `<span class="r-btns"><button class="btn small ${ok ? 'green' : ''}" data-act="make:${ri}" ${ok && o.q.length < slots ? '' : 'disabled'}>Produkuj</button>${More.serialButton(o, ri)}</span>`}
       </div>`;
     });
     html += '</div>';
@@ -1234,10 +1339,11 @@ function helpNeighbor(id) {
   const coins = 20 + 5 * S.level;
   addCoins(coins, centerOf('#sheet .sheet-card'));
   addXP(5);
+  S.tickets++;
   emit('help');
   sfx.coin();
   const n = NEIGHBORS.find(x => x.id === id);
-  toast(`${n.avatar} ${n.name} dziękuje za pomoc w polu! +${coins} 🪙 +5 XP`);
+  toast(`${n.avatar} ${n.name} dziękuje za pomoc w polu! +${coins} 🪙 +5 XP +1 🎟️`);
   saveSoon();
   rerenderSheet();
 }
@@ -1279,7 +1385,10 @@ function openHelp() {
     <p>🏭 <b>Budynki</b> — młyn, piekarnia, mleczarnia i inne zamieniają plony w droższe przetwory.</p>
     <p>📋 <b>Zamówienia</b> — na tablicy klienci płacą więcej niż skup w stodole.</p>
     <p>💧 <b>Studnia i spryskiwacze</b> — rośliny obok spryskiwacza rosną o 15% szybciej.</p>
-    <p>✥ <b>Przesuń</b> i 💰 <b>Sprzedaj</b> — urządzaj zagrodę po swojemu.</p>
+    <p>✥ <b>Przesuń</b> i 💰 <b>Sprzedaj</b> — urządzaj zagrodę po swojemu. Niepotrzebne obiekty schowasz w schowku.</p>
+    <p>🧰 <b>Maszyny</b> — nawóz przyspiesza roślinę, kombajn i siewnik pracują na 3×3 polach (paliwo ⛽).</p>
+    <p>🧭 <b>Okolica</b> — sąsiedzi, zadania dnia, wydarzenia, plan podróży, wycieczki i kurort nad morzem.</p>
+    <p>🎣 <b>Pomost</b>, ⛏️ <b>kopalnia</b>, ☕ <b>kawiarnia</b>, 🏡 <b>dom do urządzenia</b>, 🍼 <b>pokój malucha</b> i ⚙️ <b>automatyzacja</b> odblokowują się z poziomami.</p>
     <p>☝️ Jeden palec przesuwa mapę, dwa palce przybliżają.</p>
   </div><div class="modal-actions"><button class="btn green" data-close>Do roboty!</button></div>`, 'wide');
 }
@@ -1313,21 +1422,23 @@ function unlocksAt(level) {
   for (const k in BUILDINGS) for (const r of BUILDINGS[k].recipes || []) if (r.lvl === level) out.push(icon(r.out) + ' ' + ITEMS[r.out].name);
   for (const k in DECOR) if (DECOR[k].lvl === level) out.push(DECOR[k].name);
   for (const l of LAND) if (l.lvl === level) out.push('🗺️ rozszerzenie ziemi');
-  return out;
+  return out.concat(More.unlocksAt(level));
 }
 function showLevelUp() {
   const level = levelUpQueue.shift();
   if (!level) return;
   const coins = 50 * level;
   const ducats = level % 5 === 0 ? 2 : 1;
+  const auto = level >= 10 ? 1 : 0;
   G.state.coins += coins;
   G.state.ducats += ducats;
+  G.state.auto += auto;
   updateHUD();
   sfx.level();
   confetti();
   const un = unlocksAt(level);
   openModal(`<div class="lvl-burst"><span>${level}</span></div><h3>Nowy poziom!</h3>
-    <p class="reward">Nagroda: <b>${fmt(coins)} 🪙 · ${ducats} 💎</b></p>
+    <p class="reward">Nagroda: <b>${fmt(coins)} 🪙 · ${ducats} 💎${auto ? ` · ${auto} ⚙️` : ''}</b></p>
     ${un.length ? `<p class="muted">Odblokowano:</p><div class="unlocks">${un.map(u => `<span>${u}</span>`).join('')}</div>` : ''}
     <div class="modal-actions"><button class="btn green" data-close>Super!</button></div>`);
   saveSoon();
@@ -1361,11 +1472,13 @@ function checkDaily(force) {
   const streak = S.daily.last === yesterday ? S.daily.streak + 1 : 1;
   const r = DAILY[(streak - 1) % DAILY.length];
   openModal(`<div class="modal-ico">🎁</div><h3>Witaj w zagrodzie!</h3><p>Nagroda za ${streak}. dzień z rzędu:</p>${dailyRow(streak)}
+    <p class="muted">Do tego codziennie: 1 🧪 nawóz i 1 ⛽ paliwo do maszyn.</p>
     <div class="modal-actions"><button class="btn green" id="dailyBtn">Odbierz ${fmt(r.coins)} 🪙${r.ducats ? ` + ${r.ducats} 💎` : ''}</button></div>`, 'wide');
   $('#dailyBtn').onclick = () => {
     S.daily = { last: today, streak };
     addCoins(r.coins, centerOf('#modal .modal-card'));
     S.ducats += r.ducats || 0;
+    S.boost.fert++; S.boost.fuel++;
     sfx.coin();
     updateHUD();
     saveSoon();
@@ -1380,14 +1493,19 @@ function dailyRow(streak) {
 // ---------- narzędzia ----------
 function setTool(t) {
   G.tool = t;
-  document.querySelectorAll('.tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  document.querySelectorAll('.tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t || (b.dataset.tool === 'machine' && MACHINES.includes(t))));
+  More.updateMachineButton();
   const chip = $('#seedChip');
   if (t === 'plant') {
-    chip.innerHTML = `Siejesz: ${icon(G.seed)} <b>${ITEMS[G.seed].name}</b> <small>${CROPS[G.seed].seed} 🪙</small> <button data-act="pickseed">zmień</button>`;
+    const c = CROPS[G.seed];
+    chip.innerHTML = `Siejesz: ${icon(G.seed)} <b>${ITEMS[G.seed].name}</b> <small>${c.exotic ? `1× ${icon(c.exotic)}` : `${c.seed} 🪙`}</small> <button data-act="pickseed">zmień</button>`;
     chip.classList.add('show');
     $('#seedTool').innerHTML = iconRaw(G.seed).startsWith('@') ? '🌱' : iconRaw(G.seed);
   } else chip.classList.remove('show');
-  const hints = { plow: 'Pług: dotknij trawy albo przeciągnij palcem 🚜', move: 'Przesuwanie: dotknij obiektu, który chcesz przestawić', sell: 'Sprzedaż: dotknij obiektu lub pola' };
+  const hints = {
+    plow: 'Pług: dotknij trawy albo przeciągnij palcem 🚜', move: 'Przesuwanie: dotknij obiektu, który chcesz przestawić', sell: 'Sprzedaż: dotknij obiektu lub pola',
+    fert: 'Nawóz 🧪: dotknij rosnącej rośliny — dojrzeje od razu', combine: 'Kombajn ⚙️: dotknij pola — zbierze 3×3 (1 ⛽)', seeder: 'Siewnik 🌱: dotknij pola — obsieje 3×3 (1 ⛽)'
+  };
   if (hints[t]) toast(hints[t]);
   document.body.dataset.tool = t;
 }
@@ -1404,6 +1522,7 @@ function updateTimers() {
 }
 
 function tick() {
+  More.tick();
   const changed = refreshOrders();
   const expired = updateTimers();
   const sheet = $('#sheet');
@@ -1416,12 +1535,14 @@ function bindUI() {
   document.querySelectorAll('.tool').forEach(b => b.addEventListener('click', () => {
     sfx.click();
     if (b.dataset.tool === 'plant' && G.tool === 'plant') { openShop('seeds'); return; }
+    if (b.dataset.tool === 'machine') { More.openMachines(); return; }
     setTool(b.dataset.tool);
   }));
   $('#shopBtn').onclick = () => { sfx.click(); openShop(); };
   $('#barnBtn').onclick = () => { sfx.click(); openBarn(); };
   $('#ordersBtn').onclick = () => { sfx.click(); openOrders(); };
-  $('#nbBtn').onclick = () => { sfx.click(); openNeighbors(); };
+  $('#nbBtn').onclick = () => { sfx.click(); More.openHub(); };
+  $('#ghostStash').onclick = stashGhost;
   $('#menuBtn').onclick = () => { sfx.click(); openMenu(); };
   $('#ducatBtn').onclick = () => toast('Dukaty 💎 zdobywasz za awanse, zadania, nagrody dnia i niektóre zamówienia');
   $('#levelBtn').onclick = () => toast(`Poziom ${G.state.level} — do następnego brakuje ${fmt(xpForLevel(G.state.level) - G.state.xp)} XP`);
@@ -1496,12 +1617,14 @@ function handleAction(act) {
       break;
     case 'howto': closeSheet(); openHelp(); break;
     case 'daily': closeSheet(); checkDaily(true); break;
+    case 'unstash': placeFromStash(+b); break;
     case 'reset':
       confirmBox('Zacząć od nowa?', 'Cały postęp zostanie usunięty.', 'Tak, od nowa', () => {
         try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
         location.reload();
       });
       break;
+    default: More.handleAction(a, b, c, obj);
   }
 }
 
@@ -1518,6 +1641,7 @@ function boot() {
   updateHUD();
   renderQuests();
   refreshOrders();
+  More.onBoot();
   setInterval(tick, 1000);
   setInterval(save, 15000);
   setTimeout(() => {
@@ -1532,3 +1656,10 @@ function boot() {
 }
 
 boot();
+
+export {
+  G, $, now, fmt, fmtTime, icon, iconRaw, esc, pick, dayStr, toast, tip, addXP, addCoins, addItem, takeItems, has, hasRoom,
+  invTotal, balance, canPay, pay, costText, costHTML, openSheet, rerenderSheet, closeSheet, openModal, closeModal, confirmBox,
+  emit, updateHUD, saveSoon, centerOf, fly, findFree, isFree, rebuildOcc, removeObject, objName, openNeighbors, startPlace,
+  preview, card, isBuilt, plant, harvest, readyJobs, jobTime, slotsOf, orderPool, setTool, openBarn, animalCost, collectJobs
+};

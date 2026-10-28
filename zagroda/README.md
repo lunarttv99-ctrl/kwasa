@@ -35,6 +35,26 @@ i w Safari wybierz „Udostępnij → Do ekranu początkowego”.
 - **Ozdoby:** płotki, ścieżki, rabatki, ławki, latarnie, oczko wodne, fontanna, krasnal…
 - **Waluty:** talary 🪙 i dukaty 💎.
 
+## Mechaniki z oryginału (wersja 2)
+
+- **Wędkowanie** na pomoście (minigra: zatnij, gdy spławik zanurkuje), 7 rodzajów połowu.
+- **Kopalnia** z trzema szybami (węgiel, ruda żelaza, złoto, kryształy), **tartak** i **kuźnia**
+  (deski, gwoździe, cegły) — materiały do ulepszeń.
+- **Ulepszenia budynków** (poziom 2 i 3: szybciej i dodatkowe miejsce) oraz **produkcja seryjna**
+  za punkty automatyzacji — działa też, gdy gra jest zamknięta.
+- **Dom do urządzenia** (8 kategorii mebli, punkty domu, codzienna nagroda).
+- **Kawiarnia** z pomocą społeczności i sklepem za medale reputacji.
+- **Egzotyczny sklep** z półkami odświeżanymi co 4 h albo za dukaty.
+- **Kurort nad morzem**: goście płacą muszelkami, rozbudowa pensjonatu, plaży, mola i kiosku.
+- **Plan podróży** (wyprawy wozem), **wycieczki grupowe** za bilety, **zadania dnia**,
+  **wydarzenia sezonowe** z żetonami i wyjątkowymi ozdobami.
+- **Dom Zbiorów** (sam zbiera i sieje), **Pokój malucha** (rozmnażanie zwierząt),
+  **Ranczo ogrodowe** (+20% szybciej dla zwierząt obok), **czerwone kury**, **wybieg kangurów**
+  (orzechy makadamia), **dom motyli** (nektar), **szkółka drzew** (sadzonki śliw, cytryn, pomarańczy),
+  **pracownia rękodzieła** (bukiety, wianki, pisanki), **smażalnia ryb**.
+- **Maszyny**: nawóz, kombajn i siewnik 3×3 na paliwo; **schowek** na obiekty.
+- Nowe uprawy: tulipany, róże, borówki, cebula, papryka, bakłażan i ananasy z egzotycznych nasion.
+
 ## Pliki
 
 - `index.html`, `styles.css` — interfejs (HUD, narzędzia, okna),
@@ -42,5 +62,6 @@ i w Safari wybierz „Udostępnij → Do ekranu początkowego”.
 - `sprites.js` — grafika rysowana proceduralnie (bez plików z obrazkami),
 - `world.js` — mapa izometryczna: kamera, rysowanie, dotyk, trafianie w obiekty,
 - `game.js` — logika gry, zapis stanu i okna,
+- `more.js` — mechaniki z wersji 2 (wędkowanie, kopalnia, kurort, dom, kawiarnia…),
 - `sound.js` — efekty dźwiękowe syntezowane w WebAudio,
 - `sw.js`, `manifest.webmanifest`, `icons/` — instalacja jako aplikacja i tryb offline.

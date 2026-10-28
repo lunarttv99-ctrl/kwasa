@@ -683,3 +683,71 @@ body.placing .zoom { bottom: calc(var(--safe-b) + 190px); }
   .tool small { display: none; }
   .tools { gap: 6px; }
 }
+
+/* ---------- dodatki: listy, żetony, wędkowanie, kurort ---------- */
+.tool[data-tool="machine"] small { font-size: 9.5px; }
+.rows { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.row-card {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 11px; text-align: left;
+  background: #fffaf0; border: 2px solid #d6ad6c; border-radius: 14px; box-shadow: 0 2px 0 #c08a4f;
+}
+.row-card:disabled, .row-card.locked { filter: grayscale(.7); opacity: .7; }
+.muted-card { opacity: .6; }
+.row-ico { font-family: var(--emoji); font-size: 30px; width: 40px; text-align: center; flex: none; }
+.row-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.row-mid small { color: #8b5a2b; font-size: 12px; }
+.row-mid .progress { min-width: 0; }
+.pill-done { font-weight: 700; color: var(--green-dark); padding: 0 6px; }
+.r-btns { display: flex; gap: 4px; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 10px; }
+.chip { background: #fffaf0; border: 2px solid #d6ad6c; border-radius: 12px; padding: 3px 9px; font-weight: 600; font-size: 13.5px; }
+.extras { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+.ex-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; background: #f6e7c4; border: 2px solid #d6ad6c; border-radius: 12px; font-size: 13px; }
+.ex-row > span:first-child { flex: 1; min-width: 180px; }
+.ex-cost { display: flex; flex-wrap: wrap; gap: 4px; }
+.home-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 12px; }
+.home-head > div { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.home-head small { color: #8b5a2b; }
+.hub-card { position: relative; min-height: 130px; padding-bottom: 10px; }
+.hub-card .card-line { margin-top: 4px; }
+.badge {
+  position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; border-radius: 11px;
+  background: var(--red); color: #fff; font-weight: 700; font-size: 13px; line-height: 22px; padding: 0 6px;
+  box-shadow: 0 2px 0 #85251a;
+}
+.grid.hub { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.pv { width: 70px; height: 60px; object-fit: contain; }
+.seaside {
+  display: flex; justify-content: space-around; align-items: flex-end;
+  height: 92px; margin: 0 0 10px; border-radius: 16px; overflow: hidden;
+  background: linear-gradient(#8fd8ff 0 45%, #2f8fd0 45% 62%, #f3dca0 62%);
+  font-family: var(--emoji); font-size: 34px; padding-bottom: 6px;
+}
+.seaside.small { height: 64px; font-size: 26px; }
+.pond {
+  position: relative; height: 190px; margin: 6px 0 10px;
+  border-radius: 50%; border: 6px solid #b7aea0;
+  background: radial-gradient(ellipse at 50% 40%, #6cc3ea, #2a7fb0 70%, #1f5f86);
+  overflow: hidden; box-shadow: inset 0 6px 18px rgba(0, 0, 0, .25);
+}
+.ripple { position: absolute; left: 50%; top: 52%; width: 40px; height: 14px; margin: -7px 0 0 -20px; border: 2px solid rgba(255, 255, 255, .5); border-radius: 50%; animation: ripple 2.4s infinite; }
+.ripple.r2 { animation-delay: 1.2s; }
+@keyframes ripple { from { transform: scale(.4); opacity: .9; } to { transform: scale(3); opacity: 0; } }
+.bobber {
+  position: absolute; left: 50%; top: 48%; width: 16px; height: 22px; margin-left: -8px;
+  border-radius: 50% 50% 45% 45%; background: linear-gradient(#e0533d 50%, #fff 50%);
+  border: 2px solid #4a2c14; opacity: 0; transform: translateY(-30px); transition: .3s;
+}
+.bobber.in { opacity: 1; transform: none; animation: bob 1.6s ease-in-out infinite; }
+.bobber.bite { animation: bite .18s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(3px); } }
+@keyframes bite { 0% { transform: translateY(0); } 50% { transform: translateY(12px) scale(.9); } 100% { transform: translateY(4px); } }
+.fish-msg {
+  position: absolute; left: 8px; right: 8px; bottom: 16px; text-align: center;
+  color: #fff; font-weight: 600; font-size: 15px; text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+}
+.fish-msg .ico-img, .fish-msg .emo { font-size: 24px; }
+@media (prefers-reduced-motion: reduce) {
+  .ripple, .bobber.in, .quest.done, .slot.ready, .splash-logo { animation: none; }
+}

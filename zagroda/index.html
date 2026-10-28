@@ -45,6 +45,7 @@
     <button class="tool" data-tool="plant" type="button" title="Siew"><span id="seedTool">🌱</span><small>Siew</small></button>
     <button class="tool" data-tool="move" type="button" title="Przesuń"><span>✥</span><small>Przesuń</small></button>
     <button class="tool" data-tool="sell" type="button" title="Sprzedaj"><span>💰</span><small>Sprzedaj</small></button>
+    <button class="tool" data-tool="machine" type="button" title="Maszyny i nawóz"><span>🧰</span><small id="machineCount">Maszyny</small></button>
   </aside>
 
   <aside class="quests" id="quests" aria-label="Zadania"></aside>
@@ -60,6 +61,7 @@
     <span id="ghostLabel"></span>
     <div>
       <button class="btn red" id="ghostCancel" type="button">✖ Anuluj</button>
+      <button class="btn gold" id="ghostStash" type="button" hidden>📦 Do schowka</button>
       <button class="btn green" id="ghostOk" type="button">✔ Postaw</button>
     </div>
     <small>Przeciągnij obiekt palcem w wybrane miejsce</small>
@@ -69,7 +71,7 @@
     <button id="shopBtn" type="button"><span>🛒</span><small>Sklep</small></button>
     <button id="barnBtn" type="button"><span>📦</span><small>Stodoła <em id="barnCount"></em></small></button>
     <button id="ordersBtn" type="button"><span>📋</span><small>Zamówienia</small></button>
-    <button id="nbBtn" type="button"><span>👥</span><small>Sąsiedzi</small></button>
+    <button id="nbBtn" type="button"><span>🧭</span><small>Okolica</small></button>
     <button id="menuBtn" type="button"><span>☰</span><small>Menu</small></button>
   </nav>
 
