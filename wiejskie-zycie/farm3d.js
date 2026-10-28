@@ -815,6 +815,15 @@ export function createFarm3D(canvas, api) {
   const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 80);
   let azimuth = 0;
   let azimuthTarget = 0;
+  // Free camera: pan target, zoom factor and pan inertia (pixels per second)
+  const target = new THREE.Vector3();
+  let zoom = 1;
+  const MIN_ZOOM = 0.55;
+  const MAX_ZOOM = 3.2;
+  const MAX_PAN = 9;
+  const panVel = new THREE.Vector2();
+  let coasting = false;
+  let lastPanAt = 0;
 
   const hemi = new THREE.HemisphereLight('#dff1ff', '#5a7a3a', 1.2);
   scene.add(hemi);
@@ -1421,6 +1430,7 @@ export function createFarm3D(canvas, api) {
 
   function updateCamera() {
     const dir = new THREE.Vector3(Math.sin(azimuth) * Math.cos(ELEV), Math.sin(ELEV), Math.cos(azimuth) * Math.cos(ELEV));
+    // Frame the field as if the camera were centred, then apply zoom and pan.
     camera.position.copy(dir).multiplyScalar(30);
     camera.lookAt(0, 0, 0);
     camera.updateMatrixWorld();
@@ -1452,10 +1462,17 @@ export function createFarm3D(canvas, api) {
       maxY += extra * 0.6;
       minY -= extra * 0.4;
     }
-    camera.left = minX;
-    camera.right = maxX;
-    camera.top = maxY;
-    camera.bottom = minY;
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const hw = (maxX - minX) / 2 / zoom;
+    const hh = (maxY - minY) / 2 / zoom;
+    camera.left = cx - hw;
+    camera.right = cx + hw;
+    camera.top = cy + hh;
+    camera.bottom = cy - hh;
+    camera.position.copy(dir).multiplyScalar(30).add(target);
+    camera.lookAt(target);
+    camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
   }
 
@@ -1530,6 +1547,14 @@ export function createFarm3D(canvas, api) {
     last = now;
     const time = now / 1000;
 
+    if (coasting && !panVel.equals(new THREE.Vector2())) {
+      panBy(panVel.x * dt, panVel.y * dt, true);
+      panVel.multiplyScalar(Math.pow(0.04, dt));
+      if (panVel.length() < 8) {
+        panVel.set(0, 0);
+        coasting = false;
+      }
+    }
     if (Math.abs(azimuthTarget - azimuth) > 0.001) {
       azimuth += (azimuthTarget - azimuth) * Math.min(1, dt * 7);
       updateCamera();
@@ -1700,7 +1725,81 @@ export function createFarm3D(canvas, api) {
   }
 
   function rotate(dir = 1) {
-    azimuthTarget += (dir * Math.PI) / 2;
+    azimuthTarget = Math.round(azimuthTarget / (Math.PI / 2)) * (Math.PI / 2) + (dir * Math.PI) / 2;
+  }
+
+  /* ---------- Touch camera controls ---------- */
+
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const groundHit = new THREE.Vector3();
+
+  function groundPoint(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    return raycaster.ray.intersectPlane(groundPlane, groundHit) ? groundHit.clone() : null;
+  }
+
+  function clampTarget() {
+    const len = Math.hypot(target.x, target.z);
+    if (len > MAX_PAN) {
+      target.x *= MAX_PAN / len;
+      target.z *= MAX_PAN / len;
+    }
+  }
+
+  // Moves the map so the point under the finger follows the finger.
+  function panBy(dx, dy, fromInertia = false) {
+    const upp = (camera.right - camera.left) / viewW;
+    const right = new THREE.Vector3(Math.cos(azimuth), 0, -Math.sin(azimuth));
+    const away = new THREE.Vector3(-Math.sin(azimuth), 0, -Math.cos(azimuth));
+    target.addScaledVector(right, -dx * upp).addScaledVector(away, (dy * upp) / Math.sin(ELEV));
+    clampTarget();
+    updateCamera();
+    if (!fromInertia) {
+      const now = performance.now();
+      const span = Math.max(8, now - lastPanAt) / 1000;
+      lastPanAt = now;
+      panVel.lerp(new THREE.Vector2(dx / span, dy / span), 0.5);
+      coasting = false;
+    }
+  }
+
+  function zoomAt(factor, clientX, clientY) {
+    const before = groundPoint(clientX, clientY);
+    zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
+    updateCamera();
+    const after = groundPoint(clientX, clientY);
+    if (before && after) {
+      target.x += before.x - after.x;
+      target.z += before.z - after.z;
+      clampTarget();
+      updateCamera();
+    }
+  }
+
+  function rotateBy(angle) {
+    azimuth += angle;
+    azimuthTarget = azimuth;
+    updateCamera();
+  }
+
+  function release() {
+    coasting = performance.now() - lastPanAt < 80 && panVel.length() > 60;
+    if (!coasting) panVel.set(0, 0);
+  }
+
+  function stopInertia() {
+    coasting = false;
+    panVel.set(0, 0);
+  }
+
+  function resetView() {
+    stopInertia();
+    zoom = 1;
+    target.set(0, 0, 0);
+    azimuthTarget = Math.round(azimuth / (Math.PI / 2)) * (Math.PI / 2);
+    updateCamera();
   }
 
   canvas.addEventListener('webglcontextlost', e => e.preventDefault());
@@ -1710,6 +1809,15 @@ export function createFarm3D(canvas, api) {
     pick,
     screenPos,
     rotate,
+    panBy,
+    zoomAt,
+    rotateBy,
+    release,
+    stopInertia,
+    resetView,
+    get zoom() {
+      return zoom;
+    },
     resize,
     setActive,
     pulse: i => {

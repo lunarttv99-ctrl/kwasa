@@ -2903,6 +2903,7 @@ function showHelp() {
     body: `<ul>
       <li>🌱 <b>Pole:</b> dotknij trawy, by zaorać, wybierz nasiona i dotknij grządki. Możesz przeciągać palcem po wielu grządkach!</li>
       <li>💧 <b>Podlewanie:</b> podlana roślina rośnie 2× szybciej. Lepsza konewka podlewa kilka grządek naraz.</li>
+      <li>🤏 <b>Mapa:</b> dwoma palcami przybliżasz, oddalasz i obracasz widok. Jednym palcem przesuwasz mapę, gdy zaczniesz poza polem uprawnym. ⟳ obraca o 90°, 🎯 wraca do widoku pola.</li>
       <li>🍂 <b>Pory roku:</b> co ${SEASON_DAYS} dni zmienia się pora roku. Ulubione rośliny rosną o 30% szybciej, a zimą wszystko zwalnia.</li>
       <li>🐦 <b>Wrony:</b> dotknij wrony, zanim wydziobie plony. Pies Burek zrobi to za Ciebie.</li>
       <li>✨ <b>Złote rośliny:</b> rzadko wyrastają same — dają podwójny plon i 🌟.</li>
@@ -3169,42 +3170,123 @@ function tileFromPoint(x, y) {
 function bindInput() {
   const surface = farm3d ? $('scene3d') : $('field');
 
-  surface.addEventListener('pointerdown', e => {
-    unlockAudio();
-    const i = tileFromPoint(e.clientX, e.clientY);
-    if (i === -2) {
-      openFishing();
-      return;
-    }
-    if (i < 0) return;
-    e.preventDefault();
-    const action = tileAction(i);
+  // One finger works the field (swipe to sow/harvest); on anything else it pans
+  // the map. Two fingers pinch-zoom, twist-rotate and pan the 3D camera.
+  const pointers = new Map();
+  let pending = null;
+  let gesture = null;
+
+  const gestureInfo = () => {
+    const [a, b] = [...pointers.values()];
+    return {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2,
+      dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+      angle: Math.atan2(b.y - a.y, b.x - a.x)
+    };
+  };
+
+  const placesObject = () => TREES[state.seed] || state.seed === 'heater';
+
+  const tapTile = (i, action) => {
+    if (i === -2) return openFishing();
+    if (i < 0 || !action) return;
     if (action === 'buy') return askBuyTile(i);
     if (action === 'info') return showCropInfo(i);
     if (action === 'treeinfo') return showTreeInfo(i);
     if (action === 'heaterinfo') return showHeaterInfo(i);
-    if (!action || !doAction(i, action)) return;
-    if (action === 'plant' && (TREES[state.seed] || state.seed === 'heater')) return;
-    drag = { action, done: new Set([i]) };
+    if (doAction(i, action)) save();
+  };
+
+  surface.addEventListener('pointerdown', e => {
+    unlockAudio();
+    e.preventDefault();
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     try { surface.setPointerCapture(e.pointerId); } catch { /* starsze przeglądarki */ }
+    if (farm3d) farm3d.stopInertia();
+    if (pointers.size === 2 && farm3d) {
+      if (drag) save();
+      drag = null;
+      pending = null;
+      gesture = gestureInfo();
+      return;
+    }
+    if (pointers.size > 1) return;
+    const i = tileFromPoint(e.clientX, e.clientY);
+    const action = i >= 0 ? tileAction(i) : null;
+    if (action && DRAG_ACTIONS.has(action) && !(action === 'plant' && placesObject())) {
+      if (doAction(i, action)) drag = { action, done: new Set([i]) };
+      return;
+    }
+    pending = { i, action, x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, panning: false };
   });
 
   surface.addEventListener('pointermove', e => {
-    if (!drag || !DRAG_ACTIONS.has(drag.action)) return;
-    const i = tileFromPoint(e.clientX, e.clientY);
-    if (i < 0 || drag.done.has(i)) return;
-    drag.done.add(i);
-    if (tileAction(i) !== drag.action) return;
-    if (!doAction(i, drag.action)) drag = null;
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (gesture && pointers.size >= 2) {
+      const g = gestureInfo();
+      let turn = g.angle - gesture.angle;
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+      farm3d.zoomAt(g.dist / gesture.dist, g.x, g.y);
+      farm3d.rotateBy(turn);
+      farm3d.panBy(g.x - gesture.x, g.y - gesture.y);
+      gesture = g;
+      return;
+    }
+    if (drag) {
+      if (!DRAG_ACTIONS.has(drag.action)) return;
+      const i = tileFromPoint(e.clientX, e.clientY);
+      if (i < 0 || drag.done.has(i)) return;
+      drag.done.add(i);
+      if (tileAction(i) !== drag.action) return;
+      if (!doAction(i, drag.action)) drag = null;
+      return;
+    }
+    if (pending) {
+      if (!pending.panning && farm3d && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 10) pending.panning = true;
+      if (pending.panning) farm3d.panBy(e.clientX - pending.lastX, e.clientY - pending.lastY);
+      pending.lastX = e.clientX;
+      pending.lastY = e.clientY;
+    }
   });
 
-  const endDrag = () => {
-    if (drag) save();
-    drag = null;
+  const endPointer = e => {
+    if (!pointers.delete(e.pointerId)) return;
+    if (gesture) {
+      if (pointers.size < 2) gesture = null;
+      pending = null;
+      return;
+    }
+    if (drag) {
+      save();
+      drag = null;
+      return;
+    }
+    if (pending) {
+      const pd = pending;
+      pending = null;
+      if (pd.panning) {
+        farm3d.release();
+        return;
+      }
+      if (e.type === 'pointerup') tapTile(pd.i, pd.action);
+    }
   };
-  surface.addEventListener('pointerup', endDrag);
-  surface.addEventListener('pointercancel', endDrag);
-  surface.addEventListener('lostpointercapture', endDrag);
+  surface.addEventListener('pointerup', endPointer);
+  surface.addEventListener('pointercancel', endPointer);
+  surface.addEventListener('wheel', e => {
+    if (!farm3d) return;
+    e.preventDefault();
+    farm3d.zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+  }, { passive: false });
+  $('resetViewBtn').addEventListener('click', () => {
+    unlockAudio();
+    if (farm3d) farm3d.resetView();
+    sfx('plant');
+  });
 
   $('rotateBtn').addEventListener('click', () => {
     unlockAudio();
